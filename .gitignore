@@ -32,10 +32,6 @@ dist-ssr
 # TypeScript
 *.tsbuildinfo
 
-# SQLite / DB artifacts
-*.db
-course-navi-db.db
-
 # Tauri / Rust
 target/
 src-tauri/target/
