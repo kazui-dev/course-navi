@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "YamabukiCourseNavi",
+  "productName": "山吹履修ナビ",
   "version": "0.1.1",
   "identifier": "yamabuki.course-navi",
   "build": {
     "beforeDevCommand": "pnpm vite",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm vite build",
     "frontendDist": "../dist"
   },
   "app": {
