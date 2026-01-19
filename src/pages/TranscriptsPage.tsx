@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AddTranscriptModal, EditTranscriptModal } from "@/components";
 import DropdownSelect from "@/components/common/DropdownSelect";
 import { Button } from "@/components/ui/button";
@@ -99,38 +99,31 @@ export default function TranscriptsPage() {
   const [yearFilter, setYearFilter] = useState<string | null>(null); // null === all
   const [statusFilter, setStatusFilter] = useState<string | null>(null); // null === all
 
-  const filteredTranscripts = useMemo(() => {
-    const keyword = filterText.trim().toLowerCase();
+  const keyword = filterText.trim().toLowerCase();
+  const filteredTranscripts = transcripts.filter((item) => {
+    if (keyword) {
+      const courseNameMatch = item.course_name.toLowerCase().includes(keyword);
+      const abbr = courseAbbrMap[item.course_name]?.toLowerCase() ?? "";
+      const abbrMatch = abbr.includes(keyword);
+      if (!courseNameMatch && !abbrMatch) return false;
+    }
 
-    return transcripts.filter((item) => {
-      if (keyword) {
-        const courseNameMatch = item.course_name
-          .toLowerCase()
-          .includes(keyword);
-        const abbr = courseAbbrMap[item.course_name]?.toLowerCase() ?? "";
-        const abbrMatch = abbr.includes(keyword);
-        if (!courseNameMatch && !abbrMatch) return false;
-      }
+    if (yearFilter !== null) {
+      if (item.year !== Number(yearFilter)) return false;
+    }
 
-      if (yearFilter !== null) {
-        if (item.year !== Number(yearFilter)) return false;
-      }
+    if (statusFilter !== null) {
+      if (item.status !== statusFilter) return false;
+    }
 
-      if (statusFilter !== null) {
-        if (item.status !== statusFilter) return false;
-      }
-
-      return true;
-    });
-  }, [filterText, transcripts, courseAbbrMap, yearFilter, statusFilter]);
+    return true;
+  });
 
   // 表示中の履修記録（フィルタ済み）から「修得」の単位合計のみを計算する
-  const acquiredCredits = useMemo(() => {
-    return filteredTranscripts.reduce(
-      (sum, r) => (r.status === "修得" ? sum + (r.credits ?? 0) : sum),
-      0,
-    );
-  }, [filteredTranscripts]);
+  const acquiredCredits = filteredTranscripts.reduce(
+    (sum, r) => (r.status === "修得" ? sum + (r.credits ?? 0) : sum),
+    0,
+  );
 
   return (
     <div className="px-6 py-4 h-full overflow-auto">

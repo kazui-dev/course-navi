@@ -1,12 +1,5 @@
 import { ArrowBigRight, Info } from "lucide-react";
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useState,
-} from "react";
+import { Fragment, useEffect, useId, useState } from "react";
 import { UnregisterButton } from "@/components";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -85,13 +78,9 @@ function CourseList({
   );
   const searchHighlight = useHighlightStore((state) => state.searchHighlight);
   // 検索結果のcourse_name一覧をSet化
-  const highlightedNames = useMemo(
-    () =>
-      searchHighlight
-        ? new Set(searchHighlight.map((r) => r.course_name))
-        : new Set(),
-    [searchHighlight],
-  );
+  const highlightedNames = searchHighlight
+    ? new Set(searchHighlight.map((r) => r.course_name))
+    : new Set();
 
   const isCourseListLoading = useTimetableStore(
     (state) => state.isCourseListLoading,
@@ -125,7 +114,7 @@ function CourseList({
     (state) => state.getVisibleCoursesForCell,
   );
 
-  const courseList: SubjectCourseGroup[] = useMemo(() => {
+  const courseList: SubjectCourseGroup[] = (() => {
     if (day === null || !period || period.length === 0) return [];
     const cellKey = getCellKey(day, period[0]);
     return getVisibleCoursesForCell(cellKey, {
@@ -135,16 +124,7 @@ function CourseList({
       isAllowedComputed: isAllowedComputedFromStore,
       currentYear,
     });
-  }, [
-    period,
-    day,
-    getVisibleCoursesForCell,
-    hideAcquired,
-    filterPrereqs,
-    allowedCoursesFromStore,
-    isAllowedComputedFromStore,
-    currentYear,
-  ]);
+  })();
 
   function ControlsComponent(props: {
     filterPrereqs: boolean;
@@ -181,60 +161,29 @@ function CourseList({
     );
   }
 
-  const handleRegisterFromList = useCallback(
-    async (data: CourseData[]) => {
-      const result = await register(currentCell, data);
+  const handleRegisterFromList = async (data: CourseData[]) => {
+    const result = await register(currentCell, data);
+    if (
+      result &&
+      typeof result === "object" &&
+      "blocked" in result &&
+      (result as { blocked?: true }).blocked
+    ) { 
+      const courseName = data[0]?.course ?? "";
+      const resWithConfirm = result as unknown as {
+        confirmType?: string;
+        message?: string;
+      };
       if (
-        result &&
-        typeof result === "object" &&
-        "blocked" in result &&
-        (result as { blocked?: true }).blocked
+        resWithConfirm.confirmType === "maxCredits" &&
+        typeof resWithConfirm.message === "string"
       ) {
-        const courseName = data[0]?.course ?? "";
-        const resWithConfirm = result as unknown as {
-          confirmType?: string;
-          message?: string;
-        };
-        if (
-          resWithConfirm.confirmType === "maxCredits" &&
-          typeof resWithConfirm.message === "string"
-        ) {
-          const parts = resWithConfirm.message.split("|");
-          const acquired = Number(parts[0]) || 0;
-          const max = Number(parts[1]) || 0;
-          const remaining = Math.max(0, max - acquired);
-          const title = `上限単位数確認: ${courseName}`;
-          const message = `この科目を既に${acquired}単位修得しているので、あと${remaining}単位しか修得できません。\n登録しますか？`;
-          const ok = await confirmService.confirm({
-            title,
-            message,
-            okLabel: "登録",
-            cancelLabel: "キャンセル",
-          });
-          if (!ok) return;
-          await register(currentCell, data, true);
-          return;
-        }
-
-        const raw =
-          "message" in result
-            ? (result as { message?: string }).message
-            : undefined;
-        let title: string | undefined;
-        let message: string = "";
-        try {
-          const res = await formatPrereqConfirmation(
-            courseName,
-            raw,
-            currentYear ?? undefined,
-          );
-          title = res.title;
-          message = res.message;
-        } catch {
-          const res = await formatPrereqConfirmation(courseName, raw);
-          title = res.title;
-          message = res.message;
-        }
+        const parts = resWithConfirm.message.split("|");
+        const acquired = Number(parts[0]) || 0;
+        const max = Number(parts[1]) || 0;
+        const remaining = Math.max(0, max - acquired);
+        const title = `上限単位数確認: ${courseName}`;
+        const message = `この科目を既に${acquired}単位修得しているので、あと${remaining}単位しか修得できません。\n登録しますか？`;
         const ok = await confirmService.confirm({
           title,
           message,
@@ -243,10 +192,38 @@ function CourseList({
         });
         if (!ok) return;
         await register(currentCell, data, true);
+        return;
       }
-    },
-    [register, currentCell, currentYear],
-  );
+
+      const raw =
+        "message" in result
+          ? (result as { message?: string }).message
+          : undefined;
+      let title: string | undefined;
+      let message: string = "";
+      try {
+        const res = await formatPrereqConfirmation(
+          courseName,
+          raw,
+          currentYear ?? undefined,
+        );
+        title = res.title;
+        message = res.message;
+      } catch {
+        const res = await formatPrereqConfirmation(courseName, raw);
+        title = res.title;
+        message = res.message;
+      }
+      const ok = await confirmService.confirm({
+        title,
+        message,
+        okLabel: "登録",
+        cancelLabel: "キャンセル",
+      });
+      if (!ok) return;
+      await register(currentCell, data, true);
+    }
+  };
 
   if (day === null || period === null) {
     return (

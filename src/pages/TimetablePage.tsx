@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { CourseDetail, CourseList, Timetable, ToolsTop } from "@/components";
 
@@ -102,21 +102,18 @@ export default function TimetablePage() {
     (state) => state.requestAutoFill,
   );
 
-  const handleClearCourseDetail = useCallback(() => {
+  const handleClearCourseDetail = () => {
     setSelectedCourseCode(null);
-  }, []);
+  };
 
-  const handleShowCourseDetail = useCallback(
-    (courseCode: string) => {
-      const entry = courseEntriesByCode[courseCode];
-      if (!entry || entry.rows.length === 0) {
-        setSelectedCourseCode(null);
-        return;
-      }
-      setSelectedCourseCode(courseCode);
-    },
-    [courseEntriesByCode],
-  );
+  const handleShowCourseDetail = (courseCode: string) => {
+    const entry = courseEntriesByCode[courseCode];
+    if (!entry || entry.rows.length === 0) {
+      setSelectedCourseCode(null);
+      return;
+    }
+    setSelectedCourseCode(courseCode);
+  };
 
   const clickedPeriodKey = clickedCell.period
     ? clickedCell.period.join(",")
@@ -125,26 +122,24 @@ export default function TimetablePage() {
     ? `${clickedCell.day}-${clickedPeriodKey}`
     : null;
 
-  const selectedCellCourseCode = useMemo(() => {
-    return getCourseCodeFromCell(clickedCell, timetable);
-  }, [clickedCell, timetable]);
+  const selectedCellCourseCode = getCourseCodeFromCell(clickedCell, timetable);
 
   useEffect(() => {
     if (detailSelectionKey === null || selectedCellCourseCode === null) {
-      handleClearCourseDetail();
+      setSelectedCourseCode(null);
       return;
     }
     if (!courseEntriesByCode[selectedCellCourseCode]) {
       return;
     }
-    handleShowCourseDetail(selectedCellCourseCode);
-  }, [
-    detailSelectionKey,
-    selectedCellCourseCode,
-    courseEntriesByCode,
-    handleClearCourseDetail,
-    handleShowCourseDetail,
-  ]);
+
+    const entry = courseEntriesByCode[selectedCellCourseCode];
+    if (!entry || entry.rows.length === 0) {
+      setSelectedCourseCode(null);
+      return;
+    }
+    setSelectedCourseCode(selectedCellCourseCode);
+  }, [detailSelectionKey, selectedCellCourseCode, courseEntriesByCode]);
 
   useEffect(() => {
     if (!areTranscriptsLoaded) {
@@ -152,25 +147,18 @@ export default function TimetablePage() {
     }
   }, [areTranscriptsLoaded, loadTranscripts]);
 
-  const selectedCourseDetail = useMemo(
-    () =>
-      buildCourseDetail(
-        selectedCourseCode,
-        courseEntriesByCode,
-        transcriptStatusByCourseName,
-      ),
-    [selectedCourseCode, courseEntriesByCode, transcriptStatusByCourseName],
+  const selectedCourseDetail = buildCourseDetail(
+    selectedCourseCode,
+    courseEntriesByCode,
+    transcriptStatusByCourseName,
   );
 
-  const handleAutoFillCourseSearch = useCallback(
-    (courseName: string) => {
-      if (!courseName) {
-        return;
-      }
-      requestCourseSearchAutoFill(courseName);
-    },
-    [requestCourseSearchAutoFill],
-  );
+  const handleAutoFillCourseSearch = (courseName: string) => {
+    if (!courseName) {
+      return;
+    }
+    requestCourseSearchAutoFill(courseName);
+  };
 
   const handleRegister = async (
     currentCellData: CellData | null,

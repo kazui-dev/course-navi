@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CourseCheckbox } from "@/components";
 import ClassSelect from "@/components/timetable/ClassSelect";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,7 @@ export default function AddTranscriptModal({
 
   const [filterText, setFilterText] = useState("");
   const addTranscripts = useTranscriptsStore((state) => state.addTranscripts);
+
   useEffect(() => {
     if (show) {
       const loadYears = async () => {
@@ -255,8 +256,7 @@ export default function AddTranscriptModal({
     setStep((s) => s - 1);
   };
 
-  const handleCourseToggle = useCallback((course_name: string) => {
-    // Step2 では前提違反の科目は候補から除外しているため、ここでは単純にトグルする
+  const handleCourseToggle = (course_name: string) => {
     setSelectedCourses((prevSet) => {
       const newSet = new Set(prevSet);
       if (newSet.has(course_name)) {
@@ -266,7 +266,7 @@ export default function AddTranscriptModal({
       }
       return newSet;
     });
-  }, []);
+  };
 
   const handleInputChange = (
     index: number,
@@ -391,9 +391,7 @@ export default function AddTranscriptModal({
     }
   };
 
-  // 上限超過を除外する処理は不要のため削除
-
-  const coursesBySubject = useMemo(() => {
+  const filteredCoursesBySubject = (() => {
     const lowerFilter = filterText.toLowerCase().trim();
 
     const candidateList = courseMetadata.filter((course) => {
@@ -431,7 +429,7 @@ export default function AddTranscriptModal({
     });
 
     return groupCoursesBySubject(candidateList);
-  }, [selectedYear, courseMetadata, filterText, allowedCourses]);
+  })();
 
   const renderStepContent = () => {
     switch (step) {
@@ -541,22 +539,24 @@ export default function AddTranscriptModal({
               </div>
             ) : (
               <div className="h-[50vh] overflow-y-auto space-y-4 border rounded p-3">
-                {Object.entries(coursesBySubject).map(([subject, courses]) => (
-                  <div key={subject}>
-                    <p className="font-semibold text-sm mb-2">{subject}</p>
-                    <div className="flex flex-wrap gap-3">
-                      {courses.map((course) => (
-                        <CourseCheckbox
-                          key={course.course}
-                          courseName={course.course}
-                          courseAbbr={course.abbr}
-                          isSelected={selectedCourses.has(course.course)}
-                          onToggle={handleCourseToggle}
-                        />
-                      ))}
+                {Object.entries(filteredCoursesBySubject).map(
+                  ([subject, courses]) => (
+                    <div key={subject}>
+                      <p className="font-semibold text-sm mb-2">{subject}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {courses.map((course) => (
+                          <CourseCheckbox
+                            key={course.course}
+                            courseName={course.course}
+                            courseAbbr={course.abbr}
+                            isSelected={selectedCourses.has(course.course)}
+                            onToggle={handleCourseToggle}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             )}
           </div>

@@ -64,6 +64,3 @@ export function ConfirmModalRoot() {
     </Dialog>
   );
 }
-
-// ConfirmModalView is intentionally not exported as a public API.
-// Use `confirmService.confirm(...)` and `ConfirmModalRoot` instead.

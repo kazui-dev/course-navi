@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -106,9 +106,7 @@ function EditTranscriptModal({
     }
   }, [show, target]);
 
-  const isValid = useMemo(() => {
-    return courseName.trim().length > 0 && credits >= 0;
-  }, [courseName, credits]);
+  const isValid = courseName.trim().length > 0 && credits >= 0;
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

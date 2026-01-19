@@ -53,9 +53,7 @@ function PrerequisiteList({
             const parsed = JSON.parse(r.rule_logic_json);
             const desc = formatRuleLogic(parsed).trim();
             if (desc) parts.push(desc);
-          } catch {
-            // なにもしない
-          }
+          } catch {}
         }
 
         if (!mounted) return;

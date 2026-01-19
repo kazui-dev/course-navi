@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -51,40 +51,30 @@ export default function CourseSearch({
     }
   }, [activeIndex]);
 
-  const executeSearch = useCallback(
-    (name: string) => {
-      runCourseSearch(name, currentYear);
-    },
-    [runCourseSearch, currentYear],
-  );
+  const indexed = allCourses.map((c) => {
+    let aliasArr: string[] = [];
+    if (Array.isArray(c.alias)) aliasArr = c.alias.map(String);
+    else if (typeof c.alias === "string") aliasArr = [c.alias];
 
-  // 事前インデックス（allCourses が変わったら再構築）
-  const [indexed, setIndexed] = useState<
-    Array<{ course: string; abbr: string; alias: string[]; _search: string }>
-  >([]);
-  useEffect(() => {
-    const built = allCourses.map((c) => {
-      let aliasArr: string[] = [];
-      if (Array.isArray(c.alias)) aliasArr = c.alias.map(String);
-      else if (typeof c.alias === "string") aliasArr = [c.alias];
+    const addNormalized = (val: string) => {
+      const base = normalizeForSearch(val);
+      const hira = normalizeForSearch(katakanaToHiragana(val));
+      return base === hira ? [base] : [base, hira];
+    };
 
-      const addNormalized = (val: string) => {
-        const base = normalizeForSearch(val);
-        const hira = normalizeForSearch(katakanaToHiragana(val));
-        return base === hira ? [base] : [base, hira];
-      };
+    const tokens: string[] = [];
+    tokens.push(...addNormalized(c.course));
+    tokens.push(...addNormalized(c.abbr));
+    for (const a of aliasArr) tokens.push(...addNormalized(a));
 
-      const tokens: string[] = [];
-      tokens.push(...addNormalized(c.course));
-      tokens.push(...addNormalized(c.abbr));
-      for (const a of aliasArr) tokens.push(...addNormalized(a));
+    const unique = Array.from(new Set(tokens));
+    const _search = unique.join(" ");
+    return { ...c, _search };
+  });
 
-      const unique = Array.from(new Set(tokens));
-      const _search = unique.join(" ");
-      return { ...c, _search };
-    });
-    setIndexed(built);
-  }, [allCourses]);
+  const executeSearch = (name: string) => {
+    runCourseSearch(name, currentYear);
+  };
 
   const updateSuggestions = (value: string) => {
     if (value.trim() === "") {
@@ -177,6 +167,7 @@ export default function CourseSearch({
     }, 150);
   };
 
+  // オートフィルの監視
   useEffect(() => {
     if (!autoFillRequest) return;
     const { value } = autoFillRequest;
@@ -184,9 +175,10 @@ export default function CourseSearch({
     setSuggestions([]);
     setActiveIndex(-1);
     setIsFocused(false);
-    executeSearch(value);
+
+    runCourseSearch(value, currentYear);
     clearAutoFillRequest();
-  }, [autoFillRequest, executeSearch, clearAutoFillRequest]);
+  }, [autoFillRequest, currentYear, runCourseSearch, clearAutoFillRequest]);
 
   return (
     <Popover open={isFocused && suggestions.length > 0}>

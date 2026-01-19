@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React from "react";
 import { TableCell } from "@/components/ui/table";
 import { useHighlightStore } from "@/stores";
 import type {
@@ -50,37 +50,20 @@ const TimetableCell = React.memo(
     );
     const searchHighlight = useHighlightStore((state) => state.searchHighlight);
 
-    const isPreview = useMemo(
-      () => isMatch(day, period, previewHighlight),
-      [day, period, previewHighlight],
-    );
-
-    const isSearch = useMemo(
-      () => isMatch(day, period, searchHighlight),
-      [day, period, searchHighlight],
-    );
-
-    const isSelected = useMemo(
-      () => isMatch(day, period, selectedCell),
-      [day, period, selectedCell],
-    );
+    const isPreview = isMatch(day, period, previewHighlight);
+    const isSearch = isMatch(day, period, searchHighlight);
+    const isSelected = isMatch(day, period, selectedCell);
 
     const cellValue =
       cell !== "" ? `${cell.abbr || ""} ${cell.section || ""}` : "";
 
-    const handleClick = useCallback(
-      () => handleCellSelect({ day, period: [period] }),
-      [day, period, handleCellSelect],
-    );
+    const handleClick = () => handleCellSelect({ day, period: [period] });
 
-    const classList = useMemo(
-      () => [
-        isSelected && "selectedCell",
-        isPreview && "previewHighlight",
-        isSearch && "searchHighlight",
-      ],
-      [isSelected, isPreview, isSearch],
-    );
+    const classList = [
+      isSelected && "selectedCell",
+      isPreview && "previewHighlight",
+      isSearch && "searchHighlight",
+    ];
 
     if (isEvenRow) {
       const isSame =
