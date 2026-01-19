@@ -1,22 +1,18 @@
-export { default as ToolsTop } from './common/ToolsTop';
-export { CourseCheckbox } from './common/CourseCheckbox';
-export { default as CourseSearch } from './common/CourseSearch';
-export { default as DropdownSelect } from './common/DropdownSelect';
-
-export { default as Timetable } from './timetable/Timetable';
-export { default as CourseList } from './timetable/CourseList';
-export { default as CourseDetail } from './timetable/CourseDetail';
-export { default as ClassSelect } from './timetable/ClassSelect';
-export { default as UnregisterButton } from './timetable/UnregisterButton';
-export { default as TimetableCell } from './timetable/TimetableCell';
-export { default as YearSelect } from './timetable/YearSelect';
-
-// layout
-export { default as MainLayout } from './layout/MainLayout';
-export { default as Sidebar } from './layout/Sidebar';
-
-export { default as AddTranscriptModal } from './modals/AddTranscriptModal';
-export { default as EditSaveSlotsModal } from './modals/EditSaveSlotsModal';
-export { default as EditTranscriptModal } from './modals/EditTranscriptModal';
-export { default as SaveModal } from './modals/SaveModal';
-export { default as LoadModal } from './modals/LoadModal';
+export { CourseCheckbox } from "./common/CourseCheckbox";
+export { default as CourseSearch } from "./common/CourseSearch";
+export { default as DropdownSelect } from "./common/DropdownSelect";
+export { default as ToolsTop } from "./common/ToolsTop";
+export { default as MainLayout } from "./layout/MainLayout";
+export { default as Sidebar } from "./layout/Sidebar";
+export { default as AddTranscriptModal } from "./modals/AddTranscriptModal";
+export { default as EditSaveSlotsModal } from "./modals/EditSaveSlotsModal";
+export { default as EditTranscriptModal } from "./modals/EditTranscriptModal";
+export { default as LoadModal } from "./modals/LoadModal";
+export { default as SaveModal } from "./modals/SaveModal";
+export { default as ClassSelect } from "./timetable/ClassSelect";
+export { default as CourseDetail } from "./timetable/CourseDetail";
+export { default as CourseList } from "./timetable/CourseList";
+export { default as Timetable } from "./timetable/Timetable";
+export { default as TimetableCell } from "./timetable/TimetableCell";
+export { default as UnregisterButton } from "./timetable/UnregisterButton";
+export { default as YearSelect } from "./timetable/YearSelect";

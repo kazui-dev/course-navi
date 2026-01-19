@@ -40,7 +40,8 @@ const ensureCourseSubjectMap = async (
   year: number,
 ): Promise<Map<string, string>> => {
   if (courseSubjectCache.has(year)) {
-    return courseSubjectCache.get(year)!;
+    const existing = courseSubjectCache.get(year);
+    if (existing !== undefined) return existing;
   }
   const courses = await dbClient.fetchCourseMetadata(year);
   const map = new Map<string, string>();
@@ -96,17 +97,19 @@ const getStatusBucket = (
   map: Map<string, StatusCredits>,
   key: string,
 ): StatusCredits => {
-  if (!map.has(key)) {
-    map.set(key, createStatusCredits());
+  const existing = map.get(key);
+  if (existing) {
+    return existing;
   }
-  return map.get(key)!;
+  const bucket = createStatusCredits();
+  map.set(key, bucket);
+  return bucket;
 };
 
 const isRuleApplicable = (
   rule: PrerequisiteRuleRecord,
   profile: UserProfile | null,
 ): boolean => {
-  // target_department（旧if_department）で部門制限
   const departmentMatch =
     !rule.target_department ||
     rule.target_department.includes(profile?.department ?? "");
@@ -117,14 +120,13 @@ const isRuleApplicable = (
 };
 
 const parseRuleNode = (raw: unknown): RuleNode | null => {
-  // forbiddenノードを認識（type分岐で一元化）
-  if ((raw as any).type === "forbidden") {
-    return { type: "forbidden" } as RuleNode;
-  }
   if (!raw || typeof raw !== "object") {
     return null;
   }
   const node = raw as Record<string, unknown>;
+  if (node.type === "forbidden") {
+    return { type: "forbidden" };
+  }
   if (node.type === "logical") {
     const condition = node.condition === "OR" ? "OR" : "AND";
     const rules = Array.isArray(node.rules)

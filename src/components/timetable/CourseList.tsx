@@ -59,7 +59,9 @@ type CourseListProps = {
     currentCell: CellData | null,
     data: CourseData[],
     force?: boolean,
-  ) => Promise<{ success: boolean; blocked?: true; message?: string } | void>;
+  ) => Promise<
+    { success: boolean; blocked?: true; message?: string } | undefined
+  >;
   unregister: (cell: CellData) => void;
   currentYear: number | null;
   onShowDetail?: (courseCode: string) => void;
@@ -77,7 +79,6 @@ function CourseList({
 }: CourseListProps) {
   const currentCell = useCellStateStore((state) => state.currentCell);
   const { day, period } = currentCell;
-  const periodKey = period ? period.join(",") : "";
 
   const setPreviewHighlight = useHighlightStore(
     (state) => state.setPreviewHighlight,
@@ -104,10 +105,6 @@ function CourseList({
   const isAllowedComputedFromStore = useSettingsStore(
     (state) => state.isAllowedComputed,
   );
-  const currentClass = useSettingsStore((state) => state.currentClass);
-  const transcriptsVersion = useTranscriptsStore(
-    (state) => state.transcriptsVersion,
-  );
   const isTranscriptsLoaded = useTranscriptsStore(
     (state) => state.isDataLoaded,
   );
@@ -122,7 +119,7 @@ function CourseList({
   }, [isTranscriptsLoaded, loadTranscripts]);
   useEffect(() => {
     onClearDetail?.();
-  }, [day, periodKey, currentYear, onClearDetail]);
+  }, [onClearDetail]);
 
   const getVisibleCoursesForCell = useTimetableStore(
     (state) => state.getVisibleCoursesForCell,
@@ -139,16 +136,14 @@ function CourseList({
       currentYear,
     });
   }, [
+    period,
     day,
-    periodKey,
     getVisibleCoursesForCell,
     hideAcquired,
     filterPrereqs,
     allowedCoursesFromStore,
     isAllowedComputedFromStore,
     currentYear,
-    transcriptsVersion,
-    currentClass,
   ]);
 
   function ControlsComponent(props: {
@@ -196,12 +191,15 @@ function CourseList({
         (result as { blocked?: true }).blocked
       ) {
         const courseName = data[0]?.course ?? "";
-        const anyRes = result as any;
+        const resWithConfirm = result as unknown as {
+          confirmType?: string;
+          message?: string;
+        };
         if (
-          anyRes.confirmType === "maxCredits" &&
-          typeof anyRes.message === "string"
+          resWithConfirm.confirmType === "maxCredits" &&
+          typeof resWithConfirm.message === "string"
         ) {
-          const parts = anyRes.message.split("|");
+          const parts = resWithConfirm.message.split("|");
           const acquired = Number(parts[0]) || 0;
           const max = Number(parts[1]) || 0;
           const remaining = Math.max(0, max - acquired);
@@ -232,7 +230,7 @@ function CourseList({
           );
           title = res.title;
           message = res.message;
-        } catch (err) {
+        } catch {
           const res = await formatPrereqConfirmation(courseName, raw);
           title = res.title;
           message = res.message;
@@ -307,95 +305,89 @@ function CourseList({
   }
 
   return (
-    <>
-      <div>
-        <div className="mb-2">
-          <div className="flex justify-between items-center">
-            <h5 className="text-xl font-semibold">{`${days[day]}曜${period.join(",")}限:`}</h5>
-            <UnregisterButton unregister={unregister} />
-          </div>
-          <ControlsComponent
-            filterPrereqs={filterPrereqs}
-            setFilterPrereqs={(v) => setFilterPrereqs(v)}
-            hideAcquired={hideAcquired}
-            setHideAcquired={(v) => setHideAcquired(v)}
-          />
+    <div>
+      <div className="mb-2">
+        <div className="flex justify-between items-center">
+          <h5 className="text-xl font-semibold">{`${days[day]}曜${period.join(",")}限:`}</h5>
+          <UnregisterButton unregister={unregister} />
         </div>
-        <div style={{ maxHeight: "calc(100vh - 180px)", overflowY: "auto" }}>
-          <Table className="align-middle">
-            <TableBody>
-              {courseList.map(({ subject, entries }) => (
-                <Fragment key={subject}>
-                  {entries.map((data, index) => {
-                    if (data.length === 0) return null;
-                    const courseData = data[0];
-                    const displayName = `${courseData.abbr} ${courseData.section}`;
-                    const info = getCourseInfo(data);
-                    const isActive = activeDetailCode === courseData.code;
-                    const DetailIcon = isActive ? ArrowBigRight : Info;
-                    const tooltipLabel = isActive ? "表示中" : "詳細";
-                    const highlightClass = highlightedNames.has(
-                      courseData.course,
-                    )
-                      ? "bg-yellow-100"
-                      : "";
+        <ControlsComponent
+          filterPrereqs={filterPrereqs}
+          setFilterPrereqs={(v) => setFilterPrereqs(v)}
+          hideAcquired={hideAcquired}
+          setHideAcquired={(v) => setHideAcquired(v)}
+        />
+      </div>
+      <div style={{ maxHeight: "calc(100vh - 180px)", overflowY: "auto" }}>
+        <Table className="align-middle">
+          <TableBody>
+            {courseList.map(({ subject, entries }) => (
+              <Fragment key={subject}>
+                {entries.map((data, index) => {
+                  if (data.length === 0) return null;
+                  const courseData = data[0];
+                  const displayName = `${courseData.abbr} ${courseData.section}`;
+                  const info = getCourseInfo(data);
+                  const isActive = activeDetailCode === courseData.code;
+                  const DetailIcon = isActive ? ArrowBigRight : Info;
+                  const tooltipLabel = isActive ? "表示中" : "詳細";
+                  const highlightClass = highlightedNames.has(courseData.course)
+                    ? "bg-yellow-100"
+                    : "";
 
-                    return (
-                      <TableRow key={courseData.code}>
-                        {index === 0 && (
-                          <TableCell
-                            className="font-medium py-2"
-                            style={{ width: "85px" }}
-                            rowSpan={entries.length}
-                          >
-                            {subject}
-                          </TableCell>
-                        )}
+                  return (
+                    <TableRow key={courseData.code}>
+                      {index === 0 && (
                         <TableCell
-                          className={`py-2 cursor-pointer hover:bg-muted/50 ${highlightClass}`}
-                          onClick={() => handleRegisterFromList(data)}
-                          onMouseOver={() => setPreviewHighlight(data)}
-                          onMouseOut={() => setPreviewHighlight(null)}
+                          className="font-medium py-2"
+                          style={{ width: "85px" }}
+                          rowSpan={entries.length}
                         >
-                          <div>
-                            {displayName}
-                            <small className="ml-1 text-muted-foreground">
-                              {info}
-                            </small>
+                          {subject}
+                        </TableCell>
+                      )}
+                      <TableCell
+                        className={`py-2 cursor-pointer hover:bg-muted/50 ${highlightClass}`}
+                        onClick={() => handleRegisterFromList(data)}
+                        onMouseOver={() => setPreviewHighlight(data)}
+                        onMouseOut={() => setPreviewHighlight(null)}
+                      >
+                        <div>
+                          {displayName}
+                          <small className="ml-1 text-muted-foreground">
+                            {info}
+                          </small>
+                        </div>
+                      </TableCell>
+                      {onShowDetail && (
+                        <TableCell className="py-1 w-10">
+                          <div className="h-full flex items-center justify-center">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="text-muted-foreground transition hover:text-foreground"
+                                  onClick={() => onShowDetail(courseData.code)}
+                                  aria-label={tooltipLabel}
+                                >
+                                  <DetailIcon className="h-4 w-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>{tooltipLabel}</TooltipContent>
+                            </Tooltip>
                           </div>
                         </TableCell>
-                        {onShowDetail && (
-                          <TableCell className="py-1 w-10">
-                            <div className="h-full flex items-center justify-center">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button
-                                    type="button"
-                                    className="text-muted-foreground transition hover:text-foreground"
-                                    onClick={() =>
-                                      onShowDetail(courseData.code)
-                                    }
-                                    aria-label={tooltipLabel}
-                                  >
-                                    <DetailIcon className="h-4 w-4" />
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent>{tooltipLabel}</TooltipContent>
-                              </Tooltip>
-                            </div>
-                          </TableCell>
-                        )}
-                        {!onShowDetail && <TableCell className="py-2 w-10" />}
-                      </TableRow>
-                    );
-                  })}
-                </Fragment>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                      )}
+                      {!onShowDetail && <TableCell className="py-2 w-10" />}
+                    </TableRow>
+                  );
+                })}
+              </Fragment>
+            ))}
+          </TableBody>
+        </Table>
       </div>
-    </>
+    </div>
   );
 }
 

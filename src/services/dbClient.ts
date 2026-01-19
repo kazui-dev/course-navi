@@ -401,30 +401,40 @@ async function fetchCourseMetadata(year: number): Promise<CourseMetadata[]> {
   `;
 
   try {
-    const rawResults = await db.select<any[]>(query, [year]);
-    const results: CourseMetadata[] = rawResults.map((r) => {
-      let exclusive_group: string[] | null = null;
-      if (r.exclusive_group) {
-        try {
-          const parsed = JSON.parse(String(r.exclusive_group));
-          if (Array.isArray(parsed)) exclusive_group = parsed.map(String);
-        } catch (_err) {
-          exclusive_group = null;
+    const rawResults = await db.select<Record<string, unknown>[]>(query, [
+      year,
+    ]);
+    const results: CourseMetadata[] = rawResults.map(
+      (r: Record<string, unknown>) => {
+        let exclusive_group: string[] | null = null;
+        if (r.exclusive_group) {
+          try {
+            const parsed = JSON.parse(String(r.exclusive_group));
+            if (Array.isArray(parsed)) exclusive_group = parsed.map(String);
+          } catch (_err) {
+            exclusive_group = null;
+          }
         }
-      }
-      return {
-        course: r.course,
-        subject: r.subject,
-        abbr: r.abbr,
-        credits: r.credits,
-        max_credits: r.max_credits,
-        x_mark: r.x_mark,
-        year: r.year,
-        subject_sort_key: r.subject_sort_key ?? null,
-        course_sort_key: r.course_sort_key ?? null,
-        exclusive_group,
-      };
-    });
+        return {
+          course: String(r.course),
+          subject: String(r.subject),
+          abbr: String(r.abbr),
+          credits: Number(r.credits),
+          max_credits: r.max_credits === null ? null : Number(r.max_credits),
+          x_mark: r.x_mark === null ? null : Number(r.x_mark),
+          year: Number(r.year),
+          subject_sort_key:
+            r.subject_sort_key === null || r.subject_sort_key === undefined
+              ? null
+              : Number(r.subject_sort_key),
+          course_sort_key:
+            r.course_sort_key === null || r.course_sort_key === undefined
+              ? null
+              : Number(r.course_sort_key),
+          exclusive_group,
+        };
+      },
+    );
     results.sort((courseA, courseB) => {
       const subjectKeyA = courseA.subject_sort_key ?? Infinity;
       const subjectKeyB = courseB.subject_sort_key ?? Infinity;

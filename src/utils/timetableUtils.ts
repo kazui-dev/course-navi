@@ -176,7 +176,7 @@ const collectListCollections = (rows: CourseList[]): ListCollections => {
     if (!subjectCourseMap.has(row.subject)) {
       subjectCourseMap.set(row.subject, new Set());
     }
-    subjectCourseMap.get(row.subject)!.add(courseCode);
+    subjectCourseMap.get(row.subject)?.add(courseCode);
 
     const sortKeyValue = createSubjectSortKeyValue(
       row.subjectSortKey ?? courseCode,
@@ -190,7 +190,7 @@ const collectListCollections = (rows: CourseList[]): ListCollections => {
     if (!coursesByCellMap.has(cellKey)) {
       coursesByCellMap.set(cellKey, new Set());
     }
-    coursesByCellMap.get(cellKey)!.add(courseCode);
+    coursesByCellMap.get(cellKey)?.add(courseCode);
   });
 
   return {

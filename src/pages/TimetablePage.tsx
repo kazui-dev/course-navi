@@ -127,7 +127,7 @@ export default function TimetablePage() {
 
   const selectedCellCourseCode = useMemo(() => {
     return getCourseCodeFromCell(clickedCell, timetable);
-  }, [clickedCell.day, clickedPeriodKey, timetable]);
+  }, [clickedCell, timetable]);
 
   useEffect(() => {
     if (detailSelectionKey === null || selectedCellCourseCode === null) {

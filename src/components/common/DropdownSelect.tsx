@@ -69,10 +69,10 @@ export default function DropdownSelect<T extends string | number>({
             <div className="flex gap-4">
               {columns.map((col, colIndex) => (
                 <div
-                  key={colIndex}
+                  key={columnTitles?.[colIndex] || `col-${String(col[0])}`}
                   className={columnClassNames?.[colIndex] ?? "min-w-[8rem]"}
                 >
-                  {columnTitles && columnTitles[colIndex] ? (
+                  {columnTitles?.[colIndex] ? (
                     <div className="px-1 py-1 text-xs font-semibold text-muted-foreground text-center">
                       {columnTitles[colIndex]}
                     </div>

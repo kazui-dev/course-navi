@@ -90,7 +90,6 @@ export default function AddTranscriptModal({
 
   const [filterText, setFilterText] = useState("");
   const addTranscripts = useTranscriptsStore((state) => state.addTranscripts);
-  const transcripts = useTranscriptsStore((state) => state.transcripts);
   useEffect(() => {
     if (show) {
       const loadYears = async () => {
@@ -110,7 +109,7 @@ export default function AddTranscriptModal({
           } else {
             setSelectedYear(null);
           }
-        } catch (err) {
+        } catch {
           setSelectedYear(null);
         }
       };
@@ -183,7 +182,7 @@ export default function AddTranscriptModal({
               if (!violation) {
                 allowed.add(course.course);
               }
-            } catch (error) {
+            } catch {
               allowed.add(course.course);
             }
           }
@@ -244,7 +243,7 @@ export default function AddTranscriptModal({
           year: course.year,
           status: "修得",
           credits: defaultCredits,
-          maxCredits: remaining as any,
+          maxCredits: remaining as unknown as number | null,
         };
       });
       setInputs(inputsForStep3);
@@ -326,7 +325,7 @@ export default function AddTranscriptModal({
           metadata.exclusive_group.length > 0
             ? new Set<string>([
                 input.course_name,
-                ...metadata!.exclusive_group!,
+                ...(metadata.exclusive_group || []),
               ])
             : null;
         if (groupMembers) {
@@ -348,7 +347,7 @@ export default function AddTranscriptModal({
             metadata.exclusive_group.length > 0
               ? new Set<string>([
                   input.course_name,
-                  ...metadata!.exclusive_group!,
+                  ...(metadata.exclusive_group || []),
                 ])
               : null;
           if (!groupMembers) return;
@@ -360,7 +359,9 @@ export default function AddTranscriptModal({
 
         const conflictList = Array.from(conflictCourseSet);
         const lines = ["どれか一つしか履修できません。"];
-        conflictList.forEach((name) => lines.push(`「${name}」`));
+        conflictList.forEach((name) => {
+          lines.push(`「${name}」`);
+        });
         const description = lines.join("\n");
         toastService.error({
           title: "保存失敗",
@@ -400,7 +401,7 @@ export default function AddTranscriptModal({
       if (lowerFilter) {
         const match =
           course.course.toLowerCase().includes(lowerFilter) ||
-          (course.abbr && course.abbr.toLowerCase().includes(lowerFilter));
+          course.abbr?.toLowerCase().includes(lowerFilter);
         if (!match) return false;
       }
       // 既に修得単位が max_credits に達している科目は除外する
@@ -417,7 +418,7 @@ export default function AddTranscriptModal({
             courseMetadata,
           });
         if (maxCredits != null && !(acquired < maxCredits)) return false;
-      } catch (error) {
+      } catch {
         // なにもしない
       }
 
@@ -430,7 +431,7 @@ export default function AddTranscriptModal({
     });
 
     return groupCoursesBySubject(candidateList);
-  }, [courseMetadata, filterText, transcripts, allowedCourses]);
+  }, [selectedYear, courseMetadata, filterText, allowedCourses]);
 
   const renderStepContent = () => {
     switch (step) {

@@ -29,7 +29,8 @@ function ClassSelect({
     for (const c of availableClasses) {
       const key = c.length >= 2 ? c.slice(0, 2) : c;
       if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(c);
+      const group = map.get(key);
+      if (group) group.push(c);
     }
     const keys = Array.from(map.keys()).sort();
     const cols = keys.map((k) => map.get(k) ?? []);

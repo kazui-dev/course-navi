@@ -176,8 +176,8 @@ export default function Timetable({
           <TableHeader>
             <TableRow>
               <TableHead className="text-center w-16 h-10"></TableHead>
-              {days.map((day, idx) => (
-                <TableHead key={idx} className="text-center h-10">
+              {days.map((day) => (
+                <TableHead key={day} className="text-center h-10">
                   {day}
                 </TableHead>
               ))}
@@ -213,7 +213,7 @@ export default function Timetable({
 
                     return (
                       <TimetableCell
-                        key={day}
+                        key={`${period}-${days[day]}`}
                         day={day}
                         period={period}
                         cell={cell}

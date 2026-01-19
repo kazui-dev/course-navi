@@ -43,25 +43,35 @@ const buildLinesFromRaw = (rawMsg: string) => {
 
 export const formatRuleLogic = (raw: unknown): string => {
   if (!raw || typeof raw !== "object") return "";
-  const node = raw as any;
-  if (node.type === "logical") {
-    if (typeof node.label === "string" && node.label.trim()) {
-      const label = String(node.label).trim();
-      const children = Array.isArray(node.rules) ? node.rules : [];
+  const node = raw as Record<string, unknown>;
+  const nodeType = typeof node.type === "string" ? node.type : undefined;
+
+  if (nodeType === "logical") {
+    const label = typeof node.label === "string" ? node.label.trim() : "";
+    if (label) {
+      const children = Array.isArray(node.rules)
+        ? (node.rules as unknown[])
+        : [];
       let hasCourseOrSubject = false;
       let allShutoku = true;
       const creditSet = new Set<number>();
       for (const ch of children) {
         if (!ch || typeof ch !== "object") continue;
-        const t = ch.type;
+        const chNode = ch as Record<string, unknown>;
+        const t = typeof chNode.type === "string" ? chNode.type : undefined;
         if (t === "course" || t === "subject") {
           hasCourseOrSubject = true;
-          const status = ch.status === "修得" ? "修得" : "履修";
+          const status =
+            typeof chNode.status === "string" && chNode.status === "修得"
+              ? "修得"
+              : "履修";
           if (status !== "修得") allShutoku = false;
           const c =
-            typeof ch.credits === "number"
-              ? ch.credits
-              : Number(ch.credits) || 0;
+            typeof chNode.credits === "number"
+              ? chNode.credits
+              : typeof chNode.credits === "string"
+                ? Number(chNode.credits) || 0
+                : 0;
           creditSet.add(c);
         }
       }
@@ -71,23 +81,30 @@ export const formatRuleLogic = (raw: unknown): string => {
       }
       return `「${label}」`;
     }
+
     const condition = node.condition === "OR" ? "OR" : "AND";
-    const child = Array.isArray(node.rules)
-      ? node.rules.map(formatRuleLogic).filter(Boolean)
-      : [];
+    const children = Array.isArray(node.rules) ? (node.rules as unknown[]) : [];
+    const child = children.map(formatRuleLogic).filter(Boolean);
     if (condition === "AND") return child.join("\n");
     return child.join(" または ");
   }
-  if (node.type === "course" || node.type === "subject") {
+
+  if (nodeType === "course" || nodeType === "subject") {
     const name = typeof node.name === "string" ? node.name : "";
-    const status = node.status === "修得" ? "修得" : "履修";
+    const status =
+      typeof node.status === "string" && node.status === "修得"
+        ? "修得"
+        : "履修";
     const credits =
       typeof node.credits === "number"
         ? node.credits
-        : Number(node.credits) || 0;
+        : typeof node.credits === "string"
+          ? Number(node.credits) || 0
+          : 0;
     if (!name) return "";
     return status === "履修" ? `「${name}」` : `「${name}」${credits}単位修得`;
   }
+
   return "";
 };
 

@@ -93,10 +93,14 @@ function SaveModal({ show, onHide }: SaveModalProps) {
         useSaveSlotsStore
           .getState()
           .allSaveSlots.find((slot) => slot.name === trimmedName) ?? null;
+      if (!currentYear) {
+        setSaveError("年度が選択されていません");
+        return;
+      }
       const overwriteResult = await overwriteSaveSlot(
         trimmedName,
         trimmedMemo,
-        currentYear!,
+        currentYear,
         timetable,
       );
       if (overwriteResult.success) {

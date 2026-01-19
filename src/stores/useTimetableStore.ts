@@ -137,11 +137,11 @@ const _loadTimetableFromCodes = async (
   }
   try {
     const uniqueCodes = new Set<string>();
-    codesTable.forEach((row) =>
+    codesTable.forEach((row) => {
       row.forEach((code) => {
         if (code) uniqueCodes.add(code);
-      }),
-    );
+      });
+    });
     const codes = Array.from(uniqueCodes);
     if (codes.length > 0) {
       const courseDataLists = await dbClient.fetchCourseDataByCodes(
@@ -409,9 +409,13 @@ export const useTimetableStore = create<TimetableStore>((set, get) => {
               return {
                 success: false,
                 blocked: true,
-                confirmType: "maxCredits",
+                confirmType: "maxCredits" as unknown as string,
                 message: `${acquiredSum}|${maxCredits}`,
-              } as any;
+              } as unknown as {
+                success: boolean;
+                blocked?: true;
+                message?: string;
+              };
             }
           }
         }
@@ -545,8 +549,11 @@ export const useTimetableStore = create<TimetableStore>((set, get) => {
           for (let r = 0; r < newTable.length; r++) {
             for (let c = 0; c < newTable[r].length; c++) {
               const cell = newTable[r][c];
-              if (cell !== "" && (cell as any).course === "ホームルーム") {
-                newTable = deleteCourse(newTable, cell as any);
+              if (cell !== "") {
+                const courseCell = cell as CourseData;
+                if (courseCell.course === "ホームルーム") {
+                  newTable = deleteCourse(newTable, courseCell);
+                }
               }
             }
           }

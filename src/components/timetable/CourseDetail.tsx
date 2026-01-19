@@ -53,7 +53,7 @@ function PrerequisiteList({
             const parsed = JSON.parse(r.rule_logic_json);
             const desc = formatRuleLogic(parsed).trim();
             if (desc) parts.push(desc);
-          } catch (e) {
+          } catch {
             // なにもしない
           }
         }
@@ -64,7 +64,7 @@ function PrerequisiteList({
         } else {
           setText(parts.join("\n\n"));
         }
-      } catch (err) {
+      } catch {
         if (mounted) setText(fallback ?? null);
       }
     };
@@ -83,9 +83,6 @@ export default function CourseDetail({
   isLoading,
   onFillCourseSearch,
 }: CourseDetailProps) {
-  if (!detail && !isLoading) {
-    return null;
-  }
   const currentYear = useSettingsStore((state) => state.currentYear);
   const [enrolledCredits, setEnrolledCredits] = useState<number | null>(null);
   const [acquiredCredits, setAcquiredCredits] = useState<number | null>(null);
@@ -149,6 +146,10 @@ export default function CourseDetail({
       mounted = false;
     };
   }, [detail, currentYear]);
+
+  if (!detail && !isLoading) {
+    return null;
+  }
 
   return (
     <Card className="w-full shadow-sm">

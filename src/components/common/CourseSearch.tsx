@@ -49,7 +49,7 @@ export default function CourseSearch({
         block: "nearest",
       });
     }
-  }, [activeIndex, suggestions]);
+  }, [activeIndex]);
 
   const executeSearch = useCallback(
     (name: string) => {
@@ -213,15 +213,16 @@ export default function CourseSearch({
       >
         <div ref={listRef} className="border-t">
           {suggestions.map((s, index) => (
-            <div
+            <button
               key={s.course}
-              onMouseDown={() => handleSuggestionClick(s.course)}
-              className={`px-3 py-2 text-sm cursor-pointer border-b last:border-b-0 ${
+              onClick={() => handleSuggestionClick(s.course)}
+              className={`w-full text-left px-3 py-2 text-sm cursor-pointer border-b last:border-b-0 ${
                 index === activeIndex ? "bg-accent" : "hover:bg-muted"
               }`}
+              type="button"
             >
               {s.course}
-            </div>
+            </button>
           ))}
         </div>
       </PopoverContent>

@@ -1,14 +1,19 @@
-import { create } from 'zustand';
-import { dbClient } from '@/services/dbClient';
-import type { TranscriptData, DbResult, NewTranscriptData, CourseMetadata } from '@/types';
-import { useSettingsStore } from './useSettingsStore';
-import { localBackup } from '@/services/localBackup';
+import { create } from "zustand";
+import { dbClient } from "@/services/dbClient";
+import { localBackup } from "@/services/localBackup";
+import type {
+  CourseMetadata,
+  DbResult,
+  NewTranscriptData,
+  TranscriptData,
+} from "@/types";
+import { useSettingsStore } from "./useSettingsStore";
 
 // 同時読み込みを防ぐための簡易ロック（プロミス）
 let transcriptsLoadPromise: Promise<void> | null = null;
 
 // 履修・修得データの状態
-type TranscriptStatus = TranscriptData['status'];
+type TranscriptStatus = TranscriptData["status"];
 
 interface TranscriptsState {
   transcripts: TranscriptData[]; // DB から読み込んだ全履修記録
@@ -29,10 +34,20 @@ interface TranscriptsActions {
   restoreTranscript: (record: TranscriptData) => Promise<DbResult>;
   addTranscripts: (records: NewTranscriptData[]) => Promise<DbResult>;
   // getAcquiredCredits: 年制限と排他グループを考慮した取得関数
-  getAcquiredCredits: (courseName: string, opts: { upToYear?: number; includeExclusiveGroup: boolean; includeSameYear: boolean; courseMetadata?: CourseMetadata[] }) => number;
+  getAcquiredCredits: (
+    courseName: string,
+    opts: {
+      upToYear?: number;
+      includeExclusiveGroup: boolean;
+      includeSameYear: boolean;
+      courseMetadata?: CourseMetadata[];
+    },
+  ) => number;
 }
 
-export const useTranscriptsStore = create<TranscriptsState & TranscriptsActions>((set, get) => {
+export const useTranscriptsStore = create<
+  TranscriptsState & TranscriptsActions
+>((set, get) => {
   const initialState: TranscriptsState = {
     transcripts: [],
     statusByCourseName: {},
@@ -44,14 +59,18 @@ export const useTranscriptsStore = create<TranscriptsState & TranscriptsActions>
   };
 
   // レコードを適用し、状態を更新するユーティリティ
-  const applyRecords = (records: TranscriptData[], courseAbbrMap: Record<string, string>) => {
+  const applyRecords = (
+    records: TranscriptData[],
+    courseAbbrMap: Record<string, string>,
+  ) => {
     const acquiredCreditsByCourse: Record<string, number> = {};
-    records.forEach(r => {
-      if (r.status === '修得') {
-        acquiredCreditsByCourse[r.course_name] = (acquiredCreditsByCourse[r.course_name] || 0) + (r.credits || 0);
+    records.forEach((r) => {
+      if (r.status === "修得") {
+        acquiredCreditsByCourse[r.course_name] =
+          (acquiredCreditsByCourse[r.course_name] || 0) + (r.credits || 0);
       }
     });
-    set(state => ({
+    set((state) => ({
       transcripts: records,
       statusByCourseName: buildTranscriptStatusMap(records),
       acquiredCreditsByCourse,
@@ -63,31 +82,37 @@ export const useTranscriptsStore = create<TranscriptsState & TranscriptsActions>
     // 設定ストアに対して前提条件の再計算を通知（非同期で実行）
     try {
       const settings = useSettingsStore.getState();
-      if (typeof settings.recomputeAllowedCourses === 'function') {
+      if (typeof settings.recomputeAllowedCourses === "function") {
         // fire-and-forget: 即時 UI ブロックは避ける
-        settings.recomputeAllowedCourses().catch(err => console.error('recomputeAllowedCourses error:', err));
+        settings
+          .recomputeAllowedCourses()
+          .catch((err) => console.error("recomputeAllowedCourses error:", err));
       }
-    } catch (err) {
+    } catch {
       // ignore
     }
     // localBackup に最新を保存（fire-and-forget）
     try {
-      localBackup.saveTranscripts(records).catch(() => { });
+      localBackup.saveTranscripts(records).catch(() => {});
     } catch (_err) {
       // ignore
     }
   };
 
   // 履修記録から年度ごとの略称マップを構築するユーティリティ
-  const buildCourseAbbreviationMap = async (records: TranscriptData[]): Promise<Record<string, string>> => {
-    const years = Array.from(new Set(records.map(record => record.year)));
+  const buildCourseAbbreviationMap = async (
+    records: TranscriptData[],
+  ): Promise<Record<string, string>> => {
+    const years = Array.from(new Set(records.map((record) => record.year)));
     if (years.length === 0) {
       return {};
     }
     try {
-      const courseLists = await Promise.all(years.map(year => dbClient.fetchCourseMetadata(year)));
+      const courseLists = await Promise.all(
+        years.map((year) => dbClient.fetchCourseMetadata(year)),
+      );
       return courseLists.reduce<Record<string, string>>((map, list) => {
-        list.forEach(course => {
+        list.forEach((course) => {
           if (course.course) {
             map[course.course] = course.abbr;
           }
@@ -137,7 +162,10 @@ export const useTranscriptsStore = create<TranscriptsState & TranscriptsActions>
                 await dbClient.insertTranscripts(newRecords);
                 records = await dbClient.fetchTranscripts();
               } catch (err) {
-                console.error('Failed to restore transcripts from local backup:', err);
+                console.error(
+                  "Failed to restore transcripts from local backup:",
+                  err,
+                );
                 // DB 挿入に失敗した場合は UI 用にバックアップを使う
                 records = backup;
               }
@@ -157,44 +185,60 @@ export const useTranscriptsStore = create<TranscriptsState & TranscriptsActions>
       return transcriptsLoadPromise;
     },
 
-    updateTranscript: (record) => reloadOnSuccess(() => dbClient.updateTranscript(record)),
+    updateTranscript: (record) =>
+      reloadOnSuccess(() => dbClient.updateTranscript(record)),
 
-    deleteTranscript: (id) => reloadOnSuccess(() => dbClient.deleteTranscript(id)),
+    deleteTranscript: (id) =>
+      reloadOnSuccess(() => dbClient.deleteTranscript(id)),
 
     restoreTranscript: (record) =>
-      reloadOnSuccess(() => dbClient.insertTranscripts([mapTranscriptToNewRecord(record)])),
+      reloadOnSuccess(() =>
+        dbClient.insertTranscripts([mapTranscriptToNewRecord(record)]),
+      ),
 
-    addTranscripts: (records) => reloadOnSuccess(() => dbClient.insertTranscripts(records)),
+    addTranscripts: (records) =>
+      reloadOnSuccess(() => dbClient.insertTranscripts(records)),
 
     // 指定条件に従って修得単位数を返す
-    getAcquiredCredits: (courseName: string, opts: { upToYear?: number; includeExclusiveGroup: boolean; includeSameYear: boolean; courseMetadata?: CourseMetadata[] }) => {
+    getAcquiredCredits: (
+      courseName: string,
+      opts: {
+        upToYear?: number;
+        includeExclusiveGroup: boolean;
+        includeSameYear: boolean;
+        courseMetadata?: CourseMetadata[];
+      },
+    ) => {
       const upToYear = opts.upToYear;
       const includeExclusive = opts.includeExclusiveGroup === true;
       const includeSameYear = opts.includeSameYear === true;
 
       // 高速経路: 年制限なし・排他展開なし
-      if (typeof upToYear !== 'number' && !includeExclusive) {
+      if (typeof upToYear !== "number" && !includeExclusive) {
         return get().acquiredCreditsByCourse[courseName] || 0;
       }
 
       // 年制限がある場合はフィルタして集計を作成
       const records = get().transcripts;
       const baseMap: Record<string, number> = {};
-      records.forEach(r => {
-        if (r.status !== '修得') return;
-        if (typeof upToYear === 'number') {
+      records.forEach((r) => {
+        if (r.status !== "修得") return;
+        if (typeof upToYear === "number") {
           if (includeSameYear) {
             if (r.year <= upToYear) {
-              baseMap[r.course_name] = (baseMap[r.course_name] || 0) + (r.credits || 0);
+              baseMap[r.course_name] =
+                (baseMap[r.course_name] || 0) + (r.credits || 0);
             }
           } else {
             if (r.year < upToYear) {
-              baseMap[r.course_name] = (baseMap[r.course_name] || 0) + (r.credits || 0);
+              baseMap[r.course_name] =
+                (baseMap[r.course_name] || 0) + (r.credits || 0);
             }
           }
         } else {
           // 年制限なし: 全期間を含める
-          baseMap[r.course_name] = (baseMap[r.course_name] || 0) + (r.credits || 0);
+          baseMap[r.course_name] =
+            (baseMap[r.course_name] || 0) + (r.credits || 0);
         }
       });
 
@@ -205,13 +249,22 @@ export const useTranscriptsStore = create<TranscriptsState & TranscriptsActions>
       // 排他グループを考慮する場合は、対象科目が属するグループだけを合算する
       const courseMetadata = opts.courseMetadata ?? [];
       const metadataByName: Record<string, CourseMetadata> = {};
-      courseMetadata.forEach(m => { metadataByName[m.course] = m; });
+      courseMetadata.forEach((m) => {
+        metadataByName[m.course] = m;
+      });
 
       const targetMetadata = metadataByName[courseName];
-      if (targetMetadata && Array.isArray(targetMetadata.exclusive_group) && targetMetadata.exclusive_group.length > 0) {
-        const groupMembers = new Set<string>([courseName, ...targetMetadata.exclusive_group]);
+      if (
+        targetMetadata &&
+        Array.isArray(targetMetadata.exclusive_group) &&
+        targetMetadata.exclusive_group.length > 0
+      ) {
+        const groupMembers = new Set<string>([
+          courseName,
+          ...targetMetadata.exclusive_group,
+        ]);
         let sum = 0;
-        groupMembers.forEach(name => {
+        groupMembers.forEach((name) => {
           sum += baseMap[name] || 0;
         });
         return sum;
@@ -222,19 +275,32 @@ export const useTranscriptsStore = create<TranscriptsState & TranscriptsActions>
   };
 });
 
-const mapTranscriptToNewRecord = (record: TranscriptData): NewTranscriptData => ({
+const mapTranscriptToNewRecord = (
+  record: TranscriptData,
+): NewTranscriptData => ({
   course_name: record.course_name,
   year: record.year,
   status: record.status,
   credits: record.credits,
 });
 
-function buildTranscriptStatusMap(records: TranscriptData[]): Record<string, TranscriptStatus> {
-  const latestRecordByCourse: Record<string, { status: TranscriptStatus; year: number }> = {};
+function buildTranscriptStatusMap(
+  records: TranscriptData[],
+): Record<string, TranscriptStatus> {
+  const latestRecordByCourse: Record<
+    string,
+    { status: TranscriptStatus; year: number }
+  > = {};
 
-  records.forEach(record => {
+  records.forEach((record) => {
     const existing = latestRecordByCourse[record.course_name];
-    if (!existing || record.year > existing.year || (record.year === existing.year && record.status === '修得' && existing.status !== '修得')) {
+    if (
+      !existing ||
+      record.year > existing.year ||
+      (record.year === existing.year &&
+        record.status === "修得" &&
+        existing.status !== "修得")
+    ) {
       latestRecordByCourse[record.course_name] = {
         status: record.status,
         year: record.year,
