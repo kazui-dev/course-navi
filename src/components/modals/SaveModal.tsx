@@ -134,67 +134,65 @@ function SaveModal({ show, onHide }: SaveModalProps) {
   };
 
   return (
-    <>
-      <Dialog open={show} onOpenChange={handleHide}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>現在の時間割を保存</DialogTitle>
-          </DialogHeader>
-          <DialogDescription>
-            保存した時間割は「読み込み」ボタンから読み込めます
-          </DialogDescription>
-          <form
-            onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-              e.preventDefault();
-              handleSave();
-            }}
-            className="space-y-4"
-          >
-            <div className="space-y-2">
-              <Label htmlFor="tableName">保存名を入力</Label>
-              <Input
-                id="tableName"
-                type="text"
-                placeholder="（必須）"
-                value={tableName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  setTableName(e.target.value);
-                  if (saveError) setSaveError(null);
-                }}
-                autoFocus
-                autoComplete="off"
-                required
-                aria-invalid={!!saveError}
-              />
-              {saveError && (
-                <p className="text-sm text-destructive">{saveError}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="memo">メモを追加</Label>
-              <Input
-                id="memo"
-                type="text"
-                placeholder="（任意）"
-                value={memo}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setMemo(e.target.value)
-                }
-                autoComplete="off"
-              />
-            </div>
-            <DialogFooter className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={handleHide}>
-                キャンセル
-              </Button>
-              <Button variant="default" type="submit">
-                保存
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
+    <Dialog open={show} onOpenChange={handleHide}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>現在の時間割を保存</DialogTitle>
+        </DialogHeader>
+        <DialogDescription>
+          保存した時間割は「読み込み」ボタンから読み込めます
+        </DialogDescription>
+        <form
+          onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+            e.preventDefault();
+            handleSave();
+          }}
+          className="space-y-4"
+        >
+          <div className="space-y-2">
+            <Label htmlFor="tableName">保存名を入力</Label>
+            <Input
+              id="tableName"
+              type="text"
+              placeholder="（必須）"
+              value={tableName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setTableName(e.target.value);
+                if (saveError) setSaveError(null);
+              }}
+              autoFocus
+              autoComplete="off"
+              required
+              aria-invalid={!!saveError}
+            />
+            {saveError && (
+              <p className="text-sm text-destructive">{saveError}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="memo">メモを追加</Label>
+            <Input
+              id="memo"
+              type="text"
+              placeholder="（任意）"
+              value={memo}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setMemo(e.target.value)
+              }
+              autoComplete="off"
+            />
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={handleHide}>
+              キャンセル
+            </Button>
+            <Button variant="default" type="submit">
+              保存
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

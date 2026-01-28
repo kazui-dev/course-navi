@@ -21,3 +21,15 @@ export function katakanaToHiragana(s: string): string {
     String.fromCharCode(ch.charCodeAt(0) - 0x60),
   );
 }
+
+/** キーボードショートカットをスキップすべき入力系要素かどうか */
+export function isInputLikeTarget(el: HTMLElement | null): boolean {
+  if (!el) return false;
+  const tag = (el.tagName ?? "").toUpperCase();
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    !!el.isContentEditable
+  );
+}

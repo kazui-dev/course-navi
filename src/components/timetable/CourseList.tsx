@@ -168,7 +168,7 @@ function CourseList({
       typeof result === "object" &&
       "blocked" in result &&
       (result as { blocked?: true }).blocked
-    ) { 
+    ) {
       const courseName = data[0]?.course ?? "";
       const resWithConfirm = result as unknown as {
         confirmType?: string;

@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   ClassSelect,
   CourseSearch,
   TimetableCell,
   YearSelect,
 } from "@/components";
+import VerificationModal from "@/components/modals/verificationModal";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -21,12 +22,12 @@ import {
 } from "@/components/ui/tooltip";
 import { confirmService } from "@/lib/confirm";
 import { toastService } from "@/lib/toast";
+import { isInputLikeTarget } from "@/lib/utils";
 import {
   useCellStateStore,
   useSettingsStore,
   useTimetableStore,
 } from "@/stores";
-
 import type { TimetableCellContent } from "@/types";
 
 const days = ["月", "火", "水", "木", "金"];
@@ -92,18 +93,7 @@ export default function Timetable({
 
   useEffect(() => {
     const handleUnregisterShortcut = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target) {
-        const tagName = target.tagName.toUpperCase();
-        if (
-          tagName === "INPUT" ||
-          tagName === "TEXTAREA" ||
-          tagName === "SELECT" ||
-          target.isContentEditable
-        ) {
-          return;
-        }
-      }
+      if (isInputLikeTarget(event.target as HTMLElement | null)) return;
 
       const isDeleteKey = event.key === "Delete";
       const isCtrlD =
@@ -128,6 +118,8 @@ export default function Timetable({
       window.removeEventListener("keydown", handleUnregisterShortcut);
     };
   }, [selectedCell, unregister]);
+
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   return (
     <div className="timetable">
@@ -247,7 +239,19 @@ export default function Timetable({
         >
           全消去
         </Button>
+        <Button
+          size="sm"
+          variant="default"
+          className="float-right"
+          onClick={() => setShowVerificationModal(true)}
+        >
+          検証
+        </Button>
       </div>
+      <VerificationModal
+        show={showVerificationModal}
+        onHide={() => setShowVerificationModal(false)}
+      />
     </div>
   );
 }

@@ -1,5 +1,7 @@
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { dbClient } from "@/services/dbClient";
@@ -208,15 +210,25 @@ export default function CourseDetail({
               </TableRow>
               <TableRow>
                 <TableCell className="pl-0">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      detail.courseName && onFillCourseSearch(detail.courseName)
-                    }
-                  >
-                    他の開講時間
-                  </Button>
+                  <ButtonGroup>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        detail.courseName &&
+                        onFillCourseSearch(detail.courseName)
+                      }
+                    >
+                      他の開講時間
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onFillCourseSearch("")}
+                    >
+                      <X />
+                    </Button>
+                  </ButtonGroup>
                 </TableCell>
               </TableRow>
             </TableBody>
