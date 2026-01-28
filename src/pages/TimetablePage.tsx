@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import { CourseDetail, CourseList, Timetable, ToolsTop } from "@/components";
 
+import { isInputLikeTarget } from "@/lib/utils";
 import {
   useCellStateStore,
   useCourseSearchStore,
+  useModalStore,
   useSettingsStore,
   useTimetableStore,
   useTranscriptsStore,
@@ -88,8 +91,16 @@ export default function TimetablePage() {
   const courseEntriesByCode = useTimetableStore(
     (state) => state.courseEntriesByCode,
   );
+  const handleUndo = useTimetableStore((state) => state.handleUndo);
+  const handleRedo = useTimetableStore((state) => state.handleRedo);
+
+  const showSaveModal = useModalStore((state) => state.showSaveModal);
+  const showLoadModal = useModalStore((state) => state.showLoadModal);
 
   const clickedCell = useCellStateStore((state) => state.clickedCell);
+  const location = useLocation();
+  const isViewingTimetable =
+    location.pathname === "/" || location.pathname === "/timetable";
 
   const transcriptStatusByCourseName = useTranscriptsStore(
     (state) => state.statusByCourseName,
@@ -154,11 +165,48 @@ export default function TimetablePage() {
   );
 
   const handleAutoFillCourseSearch = (courseName: string) => {
-    if (!courseName) {
-      return;
-    }
     requestCourseSearchAutoFill(courseName);
   };
+
+  useEffect(() => {
+    if (!isViewingTimetable) return;
+
+    const handler = (e: KeyboardEvent) => {
+      if (isInputLikeTarget(e.target as HTMLElement | null)) return;
+      if (!(e.metaKey || e.ctrlKey)) return;
+
+      const key = (e.key ?? "").toLowerCase();
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+      if (key === "y" || (key === "z" && e.shiftKey)) {
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
+      if (key === "s") {
+        e.preventDefault();
+        showSaveModal();
+        return;
+      }
+      if (key === "o") {
+        e.preventDefault();
+        showLoadModal();
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    isViewingTimetable,
+    handleUndo,
+    handleRedo,
+    showSaveModal,
+    showLoadModal,
+  ]);
 
   const handleRegister = async (
     currentCellData: CellData | null,
