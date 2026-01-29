@@ -9,7 +9,7 @@ export { default as EditSaveSlotsModal } from "./modals/EditSaveSlotsModal";
 export { default as EditTranscriptModal } from "./modals/EditTranscriptModal";
 export { default as LoadModal } from "./modals/LoadModal";
 export { default as SaveModal } from "./modals/SaveModal";
-export { default as VerificationModal } from "./modals/verificationModal";
+export { default as VerificationModal } from "./modals/VerificationModal";
 export { default as ClassSelect } from "./timetable/ClassSelect";
 export { default as CourseDetail } from "./timetable/CourseDetail";
 export { default as CourseList } from "./timetable/CourseList";

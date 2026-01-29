@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ClassSelect,
   CourseSearch,
   TimetableCell,
   YearSelect,
 } from "@/components";
-import VerificationModal from "@/components/modals/verificationModal";
+import VerificationModal from "@/components/modals/VerificationModal";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/tooltip";
 import { confirmService } from "@/lib/confirm";
 import { toastService } from "@/lib/toast";
-import { isInputLikeTarget } from "@/lib/utils";
 import {
   useCellStateStore,
   useSettingsStore,
@@ -66,15 +65,14 @@ export default function Timetable({
   const currentClass = useSettingsStore((state) => state.currentClass);
   const availableClasses = useSettingsStore((state) => state.availableClasses);
 
-  const timetable = useTimetableStore((state) => state.timetable); // Timetable (TimetableCellContent[][])
-  const totalCredits = useTimetableStore((state) => state.totalCredits); // number
-  const unregister = useTimetableStore((state) => state.unregister);
+  const timetable = useTimetableStore((state) => state.timetable);
+  const totalCredits = useTimetableStore((state) => state.totalCredits);
   const restoreTimetableSnapshot = useTimetableStore(
     (state) => state.restoreTimetableSnapshot,
   );
 
-  const selectedCell = useCellStateStore((state) => state.clickedCell); // CellData
-  const handleCellSelect = useCellStateStore((state) => state.handleCellSelect); // (cell: CellData | null) => void
+  const selectedCell = useCellStateStore((state) => state.clickedCell);
+  const handleCellSelect = useCellStateStore((state) => state.handleCellSelect);
 
   const handleConfirmClear = () => {
     const snapshot = structuredClone(timetable);
@@ -90,34 +88,6 @@ export default function Timetable({
       },
     });
   };
-
-  useEffect(() => {
-    const handleUnregisterShortcut = (event: KeyboardEvent) => {
-      if (isInputLikeTarget(event.target as HTMLElement | null)) return;
-
-      const isDeleteKey = event.key === "Delete";
-      const isCtrlD =
-        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d";
-      if (!isDeleteKey && !isCtrlD) return;
-
-      if (
-        !selectedCell ||
-        selectedCell.day === null ||
-        !selectedCell.period ||
-        selectedCell.period.length === 0
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      unregister({ day: selectedCell.day, period: selectedCell.period });
-    };
-
-    window.addEventListener("keydown", handleUnregisterShortcut);
-    return () => {
-      window.removeEventListener("keydown", handleUnregisterShortcut);
-    };
-  }, [selectedCell, unregister]);
 
   const [showVerificationModal, setShowVerificationModal] = useState(false);
 

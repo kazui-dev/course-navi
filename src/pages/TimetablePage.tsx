@@ -173,6 +173,24 @@ export default function TimetablePage() {
 
     const handler = (e: KeyboardEvent) => {
       if (isInputLikeTarget(e.target as HTMLElement | null)) return;
+
+      const isDelete = e.key === "Delete";
+      const isCtrlD =
+        (e.ctrlKey || e.metaKey) && (e.key ?? "").toLowerCase() === "d";
+      if (isDelete || isCtrlD) {
+        if (
+          !clickedCell ||
+          clickedCell.day === null ||
+          !clickedCell.period ||
+          clickedCell.period.length === 0
+        ) {
+          return;
+        }
+        e.preventDefault();
+        unregister({ day: clickedCell.day, period: clickedCell.period });
+        return;
+      }
+
       if (!(e.metaKey || e.ctrlKey)) return;
 
       const key = (e.key ?? "").toLowerCase();
@@ -202,6 +220,8 @@ export default function TimetablePage() {
     return () => window.removeEventListener("keydown", handler);
   }, [
     isViewingTimetable,
+    clickedCell,
+    unregister,
     handleUndo,
     handleRedo,
     showSaveModal,
