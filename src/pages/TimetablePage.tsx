@@ -12,66 +12,12 @@ import {
   useTimetableStore,
   useTranscriptsStore,
 } from "@/stores";
-import type {
-  CellData,
-  CourseData,
-  CourseDetailData,
-  CourseListEntry,
-  Timetable as TimetableMatrix,
-} from "@/types";
-
-type SelectedCell = CellData & { day: number; period: number[] };
-
-const hasValidCellSelection = (cell: CellData): cell is SelectedCell => {
-  return (
-    cell.day !== null && Array.isArray(cell.period) && cell.period.length > 0
-  );
-};
-
-const getCourseCodeFromCell = (
-  cell: CellData,
-  timetable: TimetableMatrix,
-): string | null => {
-  if (!hasValidCellSelection(cell)) {
-    return null;
-  }
-  const [primaryPeriod] = cell.period;
-  if (!primaryPeriod || primaryPeriod < 1 || primaryPeriod > timetable.length) {
-    return null;
-  }
-  const row = timetable[primaryPeriod - 1];
-  const cellCourse = row?.[cell.day];
-  if (!cellCourse || typeof cellCourse === "string") {
-    return null;
-  }
-  return cellCourse.code;
-};
-
-const buildCourseDetail = (
-  courseCode: string | null,
-  entriesByCode: Record<string, CourseListEntry>,
-  transcriptStatuses: Record<string, "履修" | "修得" | null | undefined>,
-): CourseDetailData | null => {
-  if (!courseCode) {
-    return null;
-  }
-  const entry = entriesByCode[courseCode];
-  const baseRow = entry?.rows[0];
-  if (!entry || !baseRow) {
-    return null;
-  }
-
-  return {
-    sectionCode: baseRow.code,
-    abbr: baseRow.abbr,
-    section: baseRow.section,
-    courseName: baseRow.course,
-    subject: baseRow.subject,
-    credits: baseRow.credits,
-    status: transcriptStatuses[baseRow.course] ?? null,
-    prerequisite: null,
-  };
-};
+import type { CellData, CourseData, RegisterResult } from "@/types";
+import {
+  buildCourseDetail,
+  getCourseCodeFromCell,
+  hasValidCellSelection,
+} from "@/utils";
 
 export default function TimetablePage() {
   const [selectedCourseCode, setSelectedCourseCode] = useState<string | null>(
@@ -232,8 +178,9 @@ export default function TimetablePage() {
     currentCellData: CellData | null,
     data: CourseData[],
     force = false,
-  ) => {
-    return await register(data, currentCellData, force);
+  ): Promise<RegisterResult> => {
+    // Storeの戻り値を RegisterResult 型として扱うためにキャスト
+    return (await register(data, currentCellData, force)) as RegisterResult;
   };
 
   const handleYearChange = (newYear: string | number) => {

@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AddTranscriptModal, EditTranscriptModal } from "@/components";
 import DropdownSelect from "@/components/common/DropdownSelect";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ export default function TranscriptsPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
+  // --- Store ---
   const updateTranscript = useTranscriptsStore(
     (state) => state.updateTranscript,
   );
@@ -33,14 +34,55 @@ export default function TranscriptsPage() {
   const restoreTranscript = useTranscriptsStore(
     (state) => state.restoreTranscript,
   );
-
   const transcripts = useTranscriptsStore((state) => state.transcripts);
   const loadTranscripts = useTranscriptsStore((state) => state.loadTranscripts);
+  const courseAbbrMap = useTranscriptsStore((state) => state.courseAbbrMap);
+  const availableYearsForTranscripts = useSettingsStore(
+    (state) => state.availableYearsForTranscripts,
+  );
 
   useEffect(() => {
     loadTranscripts();
   }, [loadTranscripts]);
 
+  // --- Filter Logic (Inline) ---
+  const [filterText, setFilterText] = useState("");
+  const [yearFilter, setYearFilter] = useState<string | null>(null); // null === all
+  const [statusFilter, setStatusFilter] = useState<string | null>(null); // null === all
+
+  const filteredTranscripts = useMemo(() => {
+    const keyword = filterText.trim().toLowerCase();
+    return transcripts.filter((item) => {
+      // 1. テキスト検索 (科目名 or 略称)
+      if (keyword) {
+        const courseNameMatch = item.course_name
+          .toLowerCase()
+          .includes(keyword);
+        const abbr = courseAbbrMap[item.course_name]?.toLowerCase() ?? "";
+        const abbrMatch = abbr.includes(keyword);
+        if (!courseNameMatch && !abbrMatch) return false;
+      }
+      // 2. 年度フィルタ
+      if (yearFilter !== null) {
+        if (item.year !== Number(yearFilter)) return false;
+      }
+      // 3. 状態フィルタ
+      if (statusFilter !== null) {
+        if (item.status !== statusFilter) return false;
+      }
+      return true;
+    });
+  }, [transcripts, filterText, yearFilter, statusFilter, courseAbbrMap]);
+
+  // --- Stats Logic (Inline) ---
+  const acquiredCredits = useMemo(() => {
+    return filteredTranscripts.reduce(
+      (sum, r) => (r.status === "修得" ? sum + (r.credits ?? 0) : sum),
+      0,
+    );
+  }, [filteredTranscripts]);
+
+  // --- Handlers ---
   const handleEditClick = (item: TranscriptData) => {
     setEditTarget(item);
     setEditError(null);
@@ -88,50 +130,13 @@ export default function TranscriptsPage() {
     }
   };
 
-  const [filterText, setFilterText] = useState("");
-  const courseAbbrMap = useTranscriptsStore((state) => state.courseAbbrMap);
-  const availableYearsForTranscripts = useSettingsStore(
-    (state) => state.availableYearsForTranscripts,
-  );
-
-  // DropdownSelect は currentItem を null にすると placeholder を表示するため、
-  // フィルタは文字列（年は '2025' 等）または null で管理する。
-  const [yearFilter, setYearFilter] = useState<string | null>(null); // null === all
-  const [statusFilter, setStatusFilter] = useState<string | null>(null); // null === all
-
-  const keyword = filterText.trim().toLowerCase();
-  const filteredTranscripts = transcripts.filter((item) => {
-    if (keyword) {
-      const courseNameMatch = item.course_name.toLowerCase().includes(keyword);
-      const abbr = courseAbbrMap[item.course_name]?.toLowerCase() ?? "";
-      const abbrMatch = abbr.includes(keyword);
-      if (!courseNameMatch && !abbrMatch) return false;
-    }
-
-    if (yearFilter !== null) {
-      if (item.year !== Number(yearFilter)) return false;
-    }
-
-    if (statusFilter !== null) {
-      if (item.status !== statusFilter) return false;
-    }
-
-    return true;
-  });
-
-  // 表示中の履修記録（フィルタ済み）から「修得」の単位合計のみを計算する
-  const acquiredCredits = filteredTranscripts.reduce(
-    (sum, r) => (r.status === "修得" ? sum + (r.credits ?? 0) : sum),
-    0,
-  );
-
   return (
-    <div className="px-6 py-4 h-full overflow-auto">
-      <div className="mb-4">
+    <div className="px-6 py-4 h-full flex flex-col overflow-hidden">
+      <div className="mb-4 flex-shrink-0">
         <h2 className="text-2xl font-bold">履修記録一覧</h2>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 justify-between mb-4">
+      <div className="flex flex-wrap items-center gap-3 justify-between mb-4 flex-shrink-0">
         <Input
           value={filterText}
           onChange={(e) => setFilterText(e.target.value)}
@@ -143,8 +148,9 @@ export default function TranscriptsPage() {
         </Button>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <div style={{ maxHeight: "calc(100vh - 150px)", overflowY: "auto" }}>
+      <div className="border rounded-lg overflow-hidden flex-1 flex flex-col">
+        {/* Header (Sticky) */}
+        <div className="flex-shrink-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -153,15 +159,17 @@ export default function TranscriptsPage() {
                     <div className="relative w-full flex items-center justify-center">
                       <DropdownSelect
                         items={[
-                          "年度",
+                          "全年度",
                           ...(availableYearsForTranscripts || []).map(String),
                         ]}
-                        currentItem={yearFilter ?? "年度"}
+                        currentItem={yearFilter ?? "全年度"}
                         onItemSelect={(v) =>
-                          setYearFilter(v === "年度" ? null : v)
+                          setYearFilter(v === "全年度" ? null : v)
                         }
-                        renderItem={(v) => (v === "年度" ? "年度" : `${v}年度`)}
-                        placeholder="年度"
+                        renderItem={(v) =>
+                          v === "全年度" ? "全年度" : `${v}年度`
+                        }
+                        placeholder="全年度"
                         allowReselect={true}
                         triggerClassName="absolute left-1/2 -translate-x-1/2 h-9 text-sm w-28"
                       />
@@ -172,13 +180,13 @@ export default function TranscriptsPage() {
                 <TableHead className="w-24 text-center">
                   <div className="flex items-center justify-center">
                     <DropdownSelect
-                      items={["履修状況", "履修", "修得"]}
-                      currentItem={statusFilter ?? "履修状況"}
+                      items={["履修 / 修得", "履修", "修得"]}
+                      currentItem={statusFilter ?? "履修 / 修得"}
                       onItemSelect={(v) =>
-                        setStatusFilter(v === "履修状況" ? null : v)
+                        setStatusFilter(v === "履修 / 修得" ? null : v)
                       }
                       renderItem={(v) => v}
-                      placeholder="履修状況"
+                      placeholder="履修 / 修得"
                       allowReselect={true}
                     />
                   </div>
@@ -189,6 +197,12 @@ export default function TranscriptsPage() {
                 <TableHead className="w-40 text-center">操作</TableHead>
               </TableRow>
             </TableHeader>
+          </Table>
+        </div>
+
+        {/* Body (Scrollable) */}
+        <div className="flex-1 overflow-y-auto">
+          <Table>
             <TableBody>
               {filteredTranscripts.length > 0 ? (
                 filteredTranscripts.map((item) => (
@@ -227,15 +241,14 @@ export default function TranscriptsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell className="w-16 text-center" />
-                  <TableCell className="w-36 text-left text-muted-foreground py-8">
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-muted-foreground py-8"
+                  >
                     {transcripts.length === 0
                       ? "今までに履修 / 修得した科目を追加してください。"
                       : "該当する履修記録がありません。"}
                   </TableCell>
-                  <TableCell className="w-24 text-center" />
-                  <TableCell className="w-20 text-center" />
-                  <TableCell className="w-40 text-center" />
                 </TableRow>
               )}
             </TableBody>

@@ -29,9 +29,9 @@ import {
 } from "@/stores";
 import type { TimetableCellContent } from "@/types";
 
-const days = ["月", "火", "水", "木", "金"];
-
-const periodTimes: Record<number, { start: string; end: string }> = {
+// --- Constants ---
+const DAYS = ["月", "火", "水", "木", "金"];
+const PERIOD_TIMES: Record<number, { start: string; end: string }> = {
   1: { start: "08:40", end: "09:30" },
   2: { start: "09:30", end: "10:20" },
   3: { start: "10:40", end: "11:30" },
@@ -57,6 +57,7 @@ export default function Timetable({
   onClassChange,
   onClearTimetable,
 }: TimetableProps) {
+  // --- Store Selectors ---
   const currentYear = useSettingsStore((state) => state.currentYear);
   const allCourses = useSettingsStore((state) => state.allCourses);
   const availableYearsFromSectionTimes = useSettingsStore(
@@ -70,26 +71,52 @@ export default function Timetable({
   const restoreTimetableSnapshot = useTimetableStore(
     (state) => state.restoreTimetableSnapshot,
   );
+  const applyHomeroomCourses = useTimetableStore(
+    (state) => state.applyHomeroomCourses,
+  );
 
   const selectedCell = useCellStateStore((state) => state.clickedCell);
   const handleCellSelect = useCellStateStore((state) => state.handleCellSelect);
 
-  const handleConfirmClear = () => {
-    const snapshot = structuredClone(timetable);
-    onClearTimetable();
-    toastService.success({
-      title: "消去成功",
-      description: "時間割の内容を消去しました。",
-      action: {
-        label: "取り消す",
-        onClick: () => {
-          restoreTimetableSnapshot(snapshot);
-        },
-      },
-    });
+  // --- Local State ---
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+
+  // --- Handlers ---
+  const handleApplyHomeroom = async () => {
+    try {
+      await applyHomeroomCourses(currentClass);
+    } catch (err) {
+      console.error("Failed to apply homeroom courses", err);
+      toastService.error({
+        title: "エラー",
+        description: "HRの反映に失敗しました",
+      });
+    }
   };
 
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const handleClear = async () => {
+    const ok = await confirmService.confirm({
+      title: "消去の確認",
+      message: "時間割の内容を消去しますか？",
+      okLabel: "消去",
+      cancelLabel: "キャンセル",
+    });
+
+    if (ok) {
+      const snapshot = structuredClone(timetable);
+      onClearTimetable();
+      toastService.success({
+        title: "消去成功",
+        description: "時間割の内容を消去しました。",
+        action: {
+          label: "取り消す",
+          onClick: () => {
+            restoreTimetableSnapshot(snapshot);
+          },
+        },
+      });
+    }
+  };
 
   return (
     <div className="timetable">
@@ -107,19 +134,7 @@ export default function Timetable({
           />
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    const applyHomeroom =
-                      useTimetableStore.getState().applyHomeroomCourses;
-                    await applyHomeroom(currentClass);
-                  } catch (err) {
-                    console.error("Failed to apply homeroom courses", err);
-                  }
-                }}
-              >
+              <Button size="sm" variant="outline" onClick={handleApplyHomeroom}>
                 HR
               </Button>
             </TooltipTrigger>
@@ -133,12 +148,13 @@ export default function Timetable({
           <CourseSearch allCourses={allCourses} currentYear={currentYear} />
         </div>
       </div>
+
       <div className="border rounded-lg">
         <Table className="table-fixed">
           <TableHeader>
             <TableRow>
               <TableHead className="text-center w-16 h-10"></TableHead>
-              {days.map((day) => (
+              {DAYS.map((day) => (
                 <TableHead key={day} className="text-center h-10">
                   {day}
                 </TableHead>
@@ -157,25 +173,28 @@ export default function Timetable({
                       </TooltipTrigger>
                       <TooltipContent side="left">
                         <p>
-                          {periodTimes[period]?.start ?? "-"} -{" "}
-                          {periodTimes[period]?.end ?? "-"}
+                          {PERIOD_TIMES[period]?.start ?? "-"} -{" "}
+                          {PERIOD_TIMES[period]?.end ?? "-"}
                         </p>
                       </TooltipContent>
                     </Tooltip>
                   </TableCell>
 
                   {row.map((cell: TimetableCellContent, day: number) => {
+                    // 偶数行（0, 2... = 1限, 3限...）は2コマ続きの上のコマ
                     const isEvenRow = rowIdx % 2 === 0;
+
+                    // isEvenRowなら次の行（rowIdx + 1）を確認、そうでなければ前の行（rowIdx - 1）を確認
                     const nextCell = isEvenRow
-                      ? timetable[rowIdx + 1][day]
+                      ? (timetable[rowIdx + 1]?.[day] ?? "")
                       : "";
                     const prevCell = !isEvenRow
-                      ? timetable[rowIdx - 1][day]
+                      ? (timetable[rowIdx - 1]?.[day] ?? "")
                       : "";
 
                     return (
                       <TimetableCell
-                        key={`${period}-${days[day]}`}
+                        key={`${period}-${DAYS[day]}`}
                         day={day}
                         period={period}
                         cell={cell}
@@ -193,20 +212,9 @@ export default function Timetable({
           </TableBody>
         </Table>
       </div>
+
       <div className="mt-4">
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={async () => {
-            const ok = await confirmService.confirm({
-              title: "消去の確認",
-              message: "時間割の内容を消去しますか？",
-              okLabel: "消去",
-              cancelLabel: "キャンセル",
-            });
-            if (ok) handleConfirmClear();
-          }}
-        >
+        <Button size="sm" variant="destructive" onClick={handleClear}>
           全消去
         </Button>
         <Button
@@ -218,6 +226,7 @@ export default function Timetable({
           検証
         </Button>
       </div>
+
       <VerificationModal
         show={showVerificationModal}
         onHide={() => setShowVerificationModal(false)}

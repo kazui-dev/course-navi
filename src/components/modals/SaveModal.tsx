@@ -34,6 +34,8 @@ function SaveModal({ show, onHide }: SaveModalProps) {
   const currentYear = useSettingsStore((state) => state.currentYear);
   const timetable = useTimetableStore((state) => state.timetable);
 
+  const allSaveSlots = useSaveSlotsStore((state) => state.allSaveSlots);
+
   const saveTimetable = useSaveSlotsStore((state) => state.saveTimetable);
   const overwriteSaveSlot = useSaveSlotsStore(
     (state) => state.overwriteSaveSlot,
@@ -60,9 +62,7 @@ function SaveModal({ show, onHide }: SaveModalProps) {
     );
 
     if (result.success) {
-      const savedSlot = useSaveSlotsStore
-        .getState()
-        .allSaveSlots.find((slot) => slot.name === trimmedName);
+      const savedSlot = allSaveSlots.find((slot) => slot.name === trimmedName);
       setTableName("");
       setMemo("");
       setSaveError(null);
@@ -88,11 +88,9 @@ function SaveModal({ show, onHide }: SaveModalProps) {
         cancelLabel: "キャンセル",
       });
       if (!ok) return;
-      // ユーザーが OK したら上書き処理を呼ぶ
+
       const previousSnapshot =
-        useSaveSlotsStore
-          .getState()
-          .allSaveSlots.find((slot) => slot.name === trimmedName) ?? null;
+        allSaveSlots.find((slot) => slot.name === trimmedName) ?? null;
       if (!currentYear) {
         setSaveError("年度が選択されていません");
         return;

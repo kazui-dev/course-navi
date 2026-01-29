@@ -26,7 +26,8 @@ export function ConfirmModalRoot() {
   if (!pending) return null;
 
   const handleHide = () => {
-    useConfirmStore.getState().clearPending();
+    // キャンセル時は false で Promise を解決する
+    confirmService.handleResponse(pending.id, false);
   };
 
   const handleConfirm = () => {

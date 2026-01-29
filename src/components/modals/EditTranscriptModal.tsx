@@ -46,64 +46,77 @@ function EditTranscriptModal({
   const [maxCredits, setMaxCredits] = useState<number | null>(null);
 
   useEffect(() => {
-    if (show && target) {
-      setCourseName(target.course_name);
-      setYear(target.year);
-      setStatus(target.status);
-      setCredits(target.credits);
-
-      // 編集対象に対する max 単位を計算する
-      (async () => {
-        try {
-          const store = useTranscriptsStore.getState();
-          if (!store.isDataLoaded) {
-            await store.loadTranscripts();
-          }
-          const metadataList = await dbClient.fetchCourseMetadata(target.year);
-          const metadata = metadataList.find(
-            (m) => m.course === target.course_name,
-          );
-          const explicitMax = metadata?.max_credits;
-          let maxTotal: number | null;
-          if (explicitMax === null) {
-            maxTotal = null; // unlimited
-          } else {
-            maxTotal = explicitMax ?? metadata?.credits ?? target.credits;
-          }
-
-          const acquiredSum = useTranscriptsStore
-            .getState()
-            .getAcquiredCredits(target.course_name, {
-              upToYear: target.year,
-              includeExclusiveGroup: true,
-              includeSameYear: true,
-              courseMetadata: metadataList,
-            });
-          const otherAcquired =
-            acquiredSum - (target.status === "修得" ? target.credits : 0);
-
-          if (maxTotal === null) {
-            setMaxCredits(null);
-            setCredits(target.credits);
-          } else {
-            const remaining = Math.max(0, maxTotal - otherAcquired);
-            setMaxCredits(remaining);
-            // 現在の値が上限を超えている場合はクランプ
-            setCredits(Math.min(target.credits, remaining));
-          }
-        } catch (err) {
-          console.error("Failed to compute maxCredits for edit modal", err);
-          setMaxCredits(null);
-        }
-      })();
-    }
-
-    if (!show) {
+    if (!show || !target) {
       setCourseName("");
       setCredits(0);
       setStatus("修得");
       setYear(new Date().getFullYear());
+      return;
     }
+
+    // 初期値をセット
+    setCourseName(target.course_name);
+    setYear(target.year);
+    setStatus(target.status);
+    setCredits(target.credits);
+
+    let ignore = false;
+
+    const computeMaxCredits = async () => {
+      try {
+        const store = useTranscriptsStore.getState();
+        if (!store.isDataLoaded) {
+          await store.loadTranscripts();
+        }
+        if (ignore) return;
+
+        const metadataList = await dbClient.fetchCourseMetadata(target.year);
+        if (ignore) return;
+
+        const metadata = metadataList.find(
+          (m) => m.course === target.course_name,
+        );
+        const explicitMax = metadata?.max_credits;
+        let maxTotal: number | null;
+        if (explicitMax === null || explicitMax === undefined) {
+          maxTotal = null; // unlimited
+        } else {
+          maxTotal = explicitMax;
+        }
+
+        const acquiredSum = store.getAcquiredCredits(target.course_name, {
+          upToYear: target.year,
+          includeExclusiveGroup: true,
+          includeSameYear: true,
+          courseMetadata: metadataList,
+        });
+
+        // 自分自身（target）の単位数は「既修得」から除外して計算
+        const otherAcquired =
+          acquiredSum - (target.status === "修得" ? target.credits : 0);
+
+        if (ignore) return;
+
+        if (maxTotal === null) {
+          setMaxCredits(null);
+          setCredits(target.credits);
+        } else {
+          const remaining = Math.max(0, maxTotal - otherAcquired);
+          setMaxCredits(remaining);
+          // 現在の値が上限を超えている場合はクランプ
+          setCredits(Math.min(target.credits, remaining));
+        }
+      } catch (err) {
+        console.error("Failed to compute maxCredits for edit modal", err);
+        if (!ignore) setMaxCredits(null);
+      }
+    };
+
+    computeMaxCredits();
+
+    return () => {
+      ignore = true;
+    };
   }, [show, target]);
 
   const isValid = courseName.trim().length > 0 && credits >= 0;

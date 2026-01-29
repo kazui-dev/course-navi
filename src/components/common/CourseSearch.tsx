@@ -17,6 +17,40 @@ type CourseSearchProps = {
 
 type Suggestion = Pick<CourseMetadata, "course" | "abbr">;
 
+// 検索用インデックスを持つ型
+type IndexedCourse = CourseSearchProps["allCourses"][number] & {
+  _search: string;
+};
+
+/**
+ * 検索用の文字列インデックスを生成するヘルパー関数
+ */
+function buildSearchIndex(
+  courses: CourseSearchProps["allCourses"],
+): IndexedCourse[] {
+  return courses.map((c) => {
+    let aliasArr: string[] = [];
+    if (Array.isArray(c.alias)) aliasArr = c.alias.map(String);
+    else if (typeof c.alias === "string") aliasArr = [c.alias];
+
+    const addNormalized = (val: string) => {
+      if (!val) return [];
+      const base = normalizeForSearch(val);
+      const hira = normalizeForSearch(katakanaToHiragana(val));
+      return base === hira ? [base] : [base, hira];
+    };
+
+    const tokens: string[] = [];
+    tokens.push(...addNormalized(c.course));
+    tokens.push(...addNormalized(c.abbr));
+    for (const a of aliasArr) tokens.push(...addNormalized(a));
+
+    const unique = Array.from(new Set(tokens));
+    const _search = unique.join(" ");
+    return { ...c, _search };
+  });
+}
+
 export default function CourseSearch({
   allCourses,
   currentYear,
@@ -38,6 +72,9 @@ export default function CourseSearch({
     (state) => state.clearSearchResults,
   );
 
+  // React Compiler により自動メモ化されるため、直接呼び出し
+  const searchIndex = buildSearchIndex(allCourses);
+
   useEffect(() => {
     if (activeIndex < 0 || !listRef.current) {
       return;
@@ -51,27 +88,6 @@ export default function CourseSearch({
     }
   }, [activeIndex]);
 
-  const indexed = allCourses.map((c) => {
-    let aliasArr: string[] = [];
-    if (Array.isArray(c.alias)) aliasArr = c.alias.map(String);
-    else if (typeof c.alias === "string") aliasArr = [c.alias];
-
-    const addNormalized = (val: string) => {
-      const base = normalizeForSearch(val);
-      const hira = normalizeForSearch(katakanaToHiragana(val));
-      return base === hira ? [base] : [base, hira];
-    };
-
-    const tokens: string[] = [];
-    tokens.push(...addNormalized(c.course));
-    tokens.push(...addNormalized(c.abbr));
-    for (const a of aliasArr) tokens.push(...addNormalized(a));
-
-    const unique = Array.from(new Set(tokens));
-    const _search = unique.join(" ");
-    return { ...c, _search };
-  });
-
   const executeSearch = (name: string) => {
     runCourseSearch(name, currentYear);
   };
@@ -83,22 +99,24 @@ export default function CourseSearch({
     }
     const qBase = normalizeForSearch(value);
     const qHira = normalizeForSearch(katakanaToHiragana(value));
-    const filtered = indexed
+
+    const filtered = searchIndex
       .filter((item) => {
         if (qBase && item._search.includes(qBase)) return true;
         if (qHira && item._search.includes(qHira)) return true;
         return false;
       })
       .map((i) => ({ course: i.course, abbr: i.abbr }));
+
     setSuggestions(filtered);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    if (e) e.preventDefault();
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
 
     const name = searchTerm.trim();
+    // 検索語を確定してフォーカスを外す
     setSearchTerm(name);
-
     setSuggestions([]);
     setActiveIndex(-1);
     setIsFocused(false);
@@ -158,7 +176,9 @@ export default function CourseSearch({
 
   const handleFocus = () => {
     setIsFocused(true);
-    updateSuggestions(searchTerm);
+    if (searchTerm) {
+      updateSuggestions(searchTerm);
+    }
   };
 
   const handleBlur = () => {
@@ -171,6 +191,7 @@ export default function CourseSearch({
   useEffect(() => {
     if (!autoFillRequest) return;
     const { value } = autoFillRequest;
+
     setSearchTerm(value);
     setSuggestions([]);
     setActiveIndex(-1);

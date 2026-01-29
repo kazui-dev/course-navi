@@ -1,8 +1,8 @@
 import { useLocation } from "react-router-dom";
 import { Sidebar } from "@/components";
 import { ConfirmModalRoot } from "@/components/modals/ConfirmModal";
-import TimetablePage from "../../pages/TimetablePage";
-import TranscriptsPage from "../../pages/TranscriptsPage";
+import TimetablePage from "@/pages/TimetablePage";
+import TranscriptsPage from "@/pages/TranscriptsPage";
 
 export default function MainLayout() {
   const location = useLocation();

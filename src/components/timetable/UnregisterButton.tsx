@@ -4,33 +4,23 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useCellStateStore } from "@/stores";
-import type { CellData } from "@/types";
 
 type UnregisterButtonProps = {
-  /** 授業を登録解除するコールバック (対象セル情報を渡す) */
-  unregister: (cell: CellData) => void;
+  /** 授業を登録解除するコールバック */
+  onClick: () => void;
+  /** ボタンを表示するかどうか */
+  visible: boolean;
 };
 
-function UnregisterButton({ unregister }: UnregisterButtonProps) {
-  const clickedCell = useCellStateStore((state) => state.clickedCell);
-
-  const selectedCellExists = clickedCell.day !== null;
-
-  if (!selectedCellExists) {
+function UnregisterButton({ onClick, visible }: UnregisterButtonProps) {
+  if (!visible) {
     return null;
   }
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => {
-            unregister(clickedCell);
-          }}
-        >
+        <Button variant="destructive" size="sm" onClick={onClick}>
           授業削除
         </Button>
       </TooltipTrigger>

@@ -34,9 +34,9 @@ function LoadModal({ show, onHide }: LoadModalProps) {
   const [slotToEdit, setSlotToEdit] = useState<ParsedSaveSlot | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
 
-  // --- ストアからの読み取り (型は自動推論される) ---
-  const saveSlots = useSaveSlotsStore((state) => state.allSaveSlots); // ParsedSaveSlot[]
-  const currentYear = useSettingsStore((state) => state.currentYear); // number | null
+  // --- ストアからの読み取り ---
+  const saveSlots = useSaveSlotsStore((state) => state.allSaveSlots);
+  const currentYear = useSettingsStore((state) => state.currentYear);
 
   const loadTimetableFromSave = useTimetableStore(
     (state) => state.loadTimetableFromSave,
@@ -48,10 +48,10 @@ function LoadModal({ show, onHide }: LoadModalProps) {
     (state) => state.restoreDeletedSlot,
   );
 
-  const onLoad = (SaveSlot: ParsedSaveSlot) => {
+  const onLoad = (slot: ParsedSaveSlot) => {
     if (currentYear === null) return;
 
-    loadTimetableFromSave(SaveSlot.timetable, currentYear);
+    loadTimetableFromSave(slot.timetable, currentYear);
     resetCellState();
     onHide();
   };

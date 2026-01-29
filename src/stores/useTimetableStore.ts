@@ -343,7 +343,7 @@ export const useTimetableStore = create<TimetableStore>((set, get) => {
         return { success: false } as const;
       }
 
-      // 前提条件チェック: 履修/修得データを参照して違反がないか確認する
+      // 前提条件チェック: 履修 / 修得データを参照して違反がないか確認する
       // - validatePrerequisites は外部ユーティリティ。
       // - ここでエラーになった場合は UX を阻害しないために許容する設計になっている
       try {

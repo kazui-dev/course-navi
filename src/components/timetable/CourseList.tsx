@@ -18,8 +18,8 @@ import {
   useTimetableStore,
   useTranscriptsStore,
 } from "@/stores";
-import type { CellData, CourseData } from "@/types";
-import { formatPrereqConfirmation, getCellKey } from "@/utils";
+import type { CellData, CourseData, RegisterResult } from "@/types";
+import { formatPrereqConfirmation, getCellKey, getCourseInfo } from "@/utils";
 
 const days = ["月", "火", "水", "木", "金"];
 
@@ -28,33 +28,68 @@ interface SubjectCourseGroup {
   entries: CourseData[][];
 }
 
-const getCourseInfo = (data: CourseData[]): string => {
-  if (!data || data.length === 0) return "";
-  const [{ credits, period }] = data;
-  const singlePeriodLabel = period?.[0] ? `${period[0]}限` : "";
-  const dayLabel = () => data.map((d) => days[d.day]).join(", ");
-
-  if (credits <= 1) {
-    return data.length > 1
-      ? `(${dayLabel()} ${singlePeriodLabel})`
-      : `(${singlePeriodLabel})`;
-  }
-
-  if (credits >= 4) {
-    return `(${dayLabel()})`;
-  }
-
-  return "";
+// 共通ヘッダーコンポーネント
+type CourseListHeaderProps = {
+  day: number | null;
+  period: number[] | null;
+  onUnregister: () => void;
+  filterPrereqs: boolean;
+  setFilterPrereqs: (v: boolean) => void;
+  hideAcquired: boolean;
+  setHideAcquired: (v: boolean) => void;
 };
+
+function CourseListHeader({
+  day,
+  period,
+  onUnregister,
+  filterPrereqs,
+  setFilterPrereqs,
+  hideAcquired,
+  setHideAcquired,
+}: CourseListHeaderProps) {
+  const checkboxId = useId();
+
+  if (day === null || period === null) return null;
+
+  return (
+    <div className="mb-2">
+      <div className="flex justify-between items-center">
+        <h5 className="text-xl font-semibold">{`${days[day]}曜${period.join(",")}限:`}</h5>
+        <UnregisterButton onClick={onUnregister} visible={true} />
+      </div>
+      <div className="my-3">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id={`${checkboxId}-prereqs`}
+              checked={filterPrereqs}
+              onCheckedChange={(v) => setFilterPrereqs(Boolean(v))}
+            />
+            <Label htmlFor={`${checkboxId}-prereqs`}>前提条件を満たす</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id={`${checkboxId}-acquired`}
+              checked={hideAcquired}
+              onCheckedChange={(v) => setHideAcquired(Boolean(v))}
+            />
+            <Label htmlFor={`${checkboxId}-acquired`}>
+              修得済み科目を非表示
+            </Label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type CourseListProps = {
   register: (
     currentCell: CellData | null,
     data: CourseData[],
     force?: boolean,
-  ) => Promise<
-    { success: boolean; blocked?: true; message?: string } | undefined
-  >;
+  ) => Promise<RegisterResult>;
   unregister: (cell: CellData) => void;
   currentYear: number | null;
   onShowDetail?: (courseCode: string) => void;
@@ -70,24 +105,19 @@ function CourseList({
   onClearDetail,
   activeDetailCode = null,
 }: CourseListProps) {
+  // Store Selectors
   const currentCell = useCellStateStore((state) => state.currentCell);
   const { day, period } = currentCell;
-
   const setPreviewHighlight = useHighlightStore(
     (state) => state.setPreviewHighlight,
   );
   const searchHighlight = useHighlightStore((state) => state.searchHighlight);
-  // 検索結果のcourse_name一覧をSet化
-  const highlightedNames = searchHighlight
-    ? new Set(searchHighlight.map((r) => r.course_name))
-    : new Set();
-
   const isCourseListLoading = useTimetableStore(
     (state) => state.isCourseListLoading,
   );
-
-  const [hideAcquired, setHideAcquired] = useState(true);
-  const [filterPrereqs, setFilterPrereqs] = useState(true);
+  const getVisibleCoursesForCell = useTimetableStore(
+    (state) => state.getVisibleCoursesForCell,
+  );
   const allowedCoursesFromStore = useSettingsStore(
     (state) => state.currentAllowedCourses,
   );
@@ -99,20 +129,24 @@ function CourseList({
   );
   const loadTranscripts = useTranscriptsStore((state) => state.loadTranscripts);
 
-  // 前提条件フィルタは settingsStore により年度切替時に事前計算される
-  // ここでは store の値を参照して同期的にフィルタを行う
+  // Local State
+  const [hideAcquired, setHideAcquired] = useState(true);
+  const [filterPrereqs, setFilterPrereqs] = useState(true);
+
+  // Computed
+  const highlightedNames = searchHighlight
+    ? new Set(searchHighlight.map((r) => r.course_name))
+    : new Set();
+
   useEffect(() => {
     if (!isTranscriptsLoaded) {
       loadTranscripts().catch((err) => console.error(err));
     }
   }, [isTranscriptsLoaded, loadTranscripts]);
+
   useEffect(() => {
     onClearDetail?.();
   }, [onClearDetail]);
-
-  const getVisibleCoursesForCell = useTimetableStore(
-    (state) => state.getVisibleCoursesForCell,
-  );
 
   const courseList: SubjectCourseGroup[] = (() => {
     if (day === null || !period || period.length === 0) return [];
@@ -126,104 +160,67 @@ function CourseList({
     });
   })();
 
-  function ControlsComponent(props: {
-    filterPrereqs: boolean;
-    setFilterPrereqs: (v: boolean) => void;
-    hideAcquired: boolean;
-    setHideAcquired: (v: boolean) => void;
-  }) {
-    const { filterPrereqs, setFilterPrereqs, hideAcquired, setHideAcquired } =
-      props;
-    const id = useId();
-    const filterId = `${id}-filterPrereqs`;
-    const hideId = `${id}-hideAcquired`;
-    return (
-      <div className="my-3">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id={filterId}
-              checked={filterPrereqs}
-              onCheckedChange={(v) => setFilterPrereqs(Boolean(v))}
-            />
-            <Label htmlFor={filterId}>前提条件を満たす</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id={hideId}
-              checked={hideAcquired}
-              onCheckedChange={(v) => setHideAcquired(Boolean(v))}
-            />
-            <Label htmlFor={hideId}>修得済み科目を非表示</Label>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const handleRegisterFromList = async (data: CourseData[]) => {
     const result = await register(currentCell, data);
-    if (
-      result &&
-      typeof result === "object" &&
-      "blocked" in result &&
-      (result as { blocked?: true }).blocked
-    ) {
-      const courseName = data[0]?.course ?? "";
-      const resWithConfirm = result as unknown as {
-        confirmType?: string;
-        message?: string;
-      };
-      if (
-        resWithConfirm.confirmType === "maxCredits" &&
-        typeof resWithConfirm.message === "string"
-      ) {
-        const parts = resWithConfirm.message.split("|");
-        const acquired = Number(parts[0]) || 0;
-        const max = Number(parts[1]) || 0;
-        const remaining = Math.max(0, max - acquired);
-        const title = `上限単位数確認: ${courseName}`;
-        const message = `この科目を既に${acquired}単位修得しているので、あと${remaining}単位しか修得できません。\n登録しますか？`;
-        const ok = await confirmService.confirm({
-          title,
-          message,
-          okLabel: "登録",
-          cancelLabel: "キャンセル",
-        });
-        if (!ok) return;
-        await register(currentCell, data, true);
-        return;
-      }
 
-      const raw =
-        "message" in result
-          ? (result as { message?: string }).message
-          : undefined;
-      let title: string | undefined;
-      let message: string = "";
-      try {
-        const res = await formatPrereqConfirmation(
-          courseName,
-          raw,
-          currentYear ?? undefined,
-        );
-        title = res.title;
-        message = res.message;
-      } catch {
-        const res = await formatPrereqConfirmation(courseName, raw);
-        title = res.title;
-        message = res.message;
-      }
+    // 成功またはundefinedの場合は何もしない
+    if (!result || result.success) return;
+
+    // ブロックされた場合の処理
+    const courseName = data[0]?.course ?? "";
+    const { confirmType, message: rawMessage } = result;
+
+    // 1. 最大単位数オーバーの確認
+    if (confirmType === "maxCredits" && rawMessage) {
+      const [acquiredStr, maxStr] = rawMessage.split("|");
+      const acquired = Number(acquiredStr) || 0;
+      const max = Number(maxStr) || 0;
+      const remaining = Math.max(0, max - acquired);
+
       const ok = await confirmService.confirm({
-        title,
-        message,
+        title: `上限単位数確認: ${courseName}`,
+        message: `この科目を既に${acquired}単位修得しているので、あと${remaining}単位しか修得できません。\n登録しますか？`,
         okLabel: "登録",
         cancelLabel: "キャンセル",
       });
-      if (!ok) return;
+
+      if (ok) {
+        await register(currentCell, data, true);
+      }
+      return;
+    }
+
+    // 2. 前提条件違反などの確認 (Prerequisite)
+    let title: string | undefined;
+    let message: string = "";
+
+    try {
+      const res = await formatPrereqConfirmation(
+        courseName,
+        rawMessage,
+        currentYear ?? undefined,
+      );
+      title = res.title;
+      message = res.message;
+    } catch {
+      const res = await formatPrereqConfirmation(courseName, rawMessage);
+      title = res.title;
+      message = res.message;
+    }
+
+    const ok = await confirmService.confirm({
+      title,
+      message,
+      okLabel: "登録",
+      cancelLabel: "キャンセル",
+    });
+
+    if (ok) {
       await register(currentCell, data, true);
     }
   };
+
+  // --- Render ---
 
   if (day === null || period === null) {
     return (
@@ -237,21 +234,24 @@ function CourseList({
       </>
     );
   }
+
+  // 共通ヘッダー
+  const header = (
+    <CourseListHeader
+      day={day}
+      period={period}
+      onUnregister={() => unregister(currentCell)}
+      filterPrereqs={filterPrereqs}
+      setFilterPrereqs={setFilterPrereqs}
+      hideAcquired={hideAcquired}
+      setHideAcquired={setHideAcquired}
+    />
+  );
+
   if (isCourseListLoading) {
     return (
       <div>
-        <div className="mb-2">
-          <div className="flex justify-between items-center">
-            <h5 className="text-xl font-semibold">{`${days[day]}曜${period.join(",")}限:`}</h5>
-            <UnregisterButton unregister={unregister} />
-          </div>
-          <ControlsComponent
-            filterPrereqs={filterPrereqs}
-            setFilterPrereqs={(v) => setFilterPrereqs(v)}
-            hideAcquired={hideAcquired}
-            setHideAcquired={(v) => setHideAcquired(v)}
-          />
-        </div>
+        {header}
         <Card className="p-3 text-center text-muted-foreground">
           授業データを読み込んでいます…
         </Card>
@@ -262,18 +262,7 @@ function CourseList({
   if (courseList.length === 0) {
     return (
       <div>
-        <div className="mb-2">
-          <div className="flex justify-between items-center">
-            <h5 className="text-xl font-semibold">{`${days[day]}曜${period.join(",")}限:`}</h5>
-            <UnregisterButton unregister={unregister} />
-          </div>
-          <ControlsComponent
-            filterPrereqs={filterPrereqs}
-            setFilterPrereqs={(v) => setFilterPrereqs(v)}
-            hideAcquired={hideAcquired}
-            setHideAcquired={(v) => setHideAcquired(v)}
-          />
-        </div>
+        {header}
         <Card className="p-3 text-center text-muted-foreground">
           開講授業がありません。
         </Card>
@@ -283,18 +272,7 @@ function CourseList({
 
   return (
     <div>
-      <div className="mb-2">
-        <div className="flex justify-between items-center">
-          <h5 className="text-xl font-semibold">{`${days[day]}曜${period.join(",")}限:`}</h5>
-          <UnregisterButton unregister={unregister} />
-        </div>
-        <ControlsComponent
-          filterPrereqs={filterPrereqs}
-          setFilterPrereqs={(v) => setFilterPrereqs(v)}
-          hideAcquired={hideAcquired}
-          setHideAcquired={(v) => setHideAcquired(v)}
-        />
-      </div>
+      {header}
       <div style={{ maxHeight: "calc(100vh - 180px)", overflowY: "auto" }}>
         <Table className="align-middle">
           <TableBody>

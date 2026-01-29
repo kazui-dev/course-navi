@@ -175,6 +175,20 @@ export type TimetableCodesTable = string[][];
 /** 表示用のタイムテーブル（セルに CourseData または '' を持つ 2 次元配列） */
 export type Timetable = TimetableCellContent[][];
 
+// ======= 登録結果 =======
+/**
+ * 登録処理の結果を表す型
+ */
+export type RegisterResult =
+  | { success: true }
+  | {
+      success: false;
+      blocked: true;
+      confirmType?: "maxCredits" | "prerequisite" | string;
+      message?: string;
+    }
+  | undefined;
+
 // ======= 保存 / スロット =======
 /**
  * SaveSlot
