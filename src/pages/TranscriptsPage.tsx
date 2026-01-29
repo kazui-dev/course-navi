@@ -186,7 +186,7 @@ export default function TranscriptsPage() {
                 <TableHead className="w-20 text-center">
                   単位数（修得: {acquiredCredits}）
                 </TableHead>
-                <TableHead className="w-40 text-center">操作</TableHead>
+                <TableHead className="w-40" />
               </TableRow>
             </TableHeader>
           </Table>

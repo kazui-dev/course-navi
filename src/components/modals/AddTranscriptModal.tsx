@@ -421,8 +421,6 @@ export default function AddTranscriptModal({
     return groupCoursesBySubject(candidateList);
   })();
 
-  // --- Render Steps (Extracted) ---
-
   const renderStep1 = () => (
     <div className="space-y-2">
       <div className="text-sm text-muted-foreground pb-1">
