@@ -96,7 +96,6 @@ export default function AddTranscriptModal({
       const loadYears = async () => {
         const years = await dbClient.fetchAvailableYearsForTranscripts();
         setAvailableYears(years);
-        // 初回は未設定 (null) にして placeholder を表示する。
         try {
           const LS_KEY = "addTranscript.lastSelectedYear";
           const stored = localStorage.getItem(LS_KEY);
@@ -118,8 +117,6 @@ export default function AddTranscriptModal({
     }
   }, [show]);
 
-  // selectedYear が変わったら settingsStore 側に同期して、その年の class を初期値として取り込む
-  // また、年度が切り替わった場合は Step2 のチェックや Step3 の入力をクリアする
   useEffect(() => {
     if (selectedYear == null) {
       setSelectedClass(null);
@@ -141,7 +138,6 @@ export default function AddTranscriptModal({
         const cls = buildClassName(profile);
         setSelectedClass(cls);
 
-        // 年度変更時は選択をクリア
         setSelectedCourses(new Set());
         setInputs([]);
       } catch (error) {
@@ -163,14 +159,12 @@ export default function AddTranscriptModal({
       const loadCourses = async () => {
         const data = await dbClient.fetchCourseMetadata(selectedYear);
         setCourseMetadata(data);
-        // transcripts を読み込んでおく（表示フィルタで使用するため）
         try {
           const store = useTranscriptsStore.getState();
           if (!store.isDataLoaded) {
             await store.loadTranscripts();
           }
 
-          // 前提条件フィルタを事前計算して、違反する科目は候補から除外する
           const transcriptsList = useTranscriptsStore.getState().transcripts;
           const allowed = new Set<string>();
           for (const course of data) {
@@ -214,7 +208,6 @@ export default function AddTranscriptModal({
       const selected = courseMetadata.filter((course) =>
         selectedCourses.has(course.course),
       );
-      // transcripts が読まれていることを保証
       const store = useTranscriptsStore.getState();
       if (!store.isDataLoaded) {
         await store.loadTranscripts();
@@ -228,7 +221,7 @@ export default function AddTranscriptModal({
             includeSameYear: true,
             courseMetadata,
           });
-        const explicitMax = course.max_credits; // number | null | undefined
+        const explicitMax = course.max_credits;
         const maxCreditsVal: number | null =
           explicitMax === null ? null : (explicitMax ?? course.credits);
         const remaining =
@@ -395,14 +388,12 @@ export default function AddTranscriptModal({
     const lowerFilter = filterText.toLowerCase().trim();
 
     const candidateList = courseMetadata.filter((course) => {
-      // フィルタテキスト条件
       if (lowerFilter) {
         const match =
           course.course.toLowerCase().includes(lowerFilter) ||
           course.abbr?.toLowerCase().includes(lowerFilter);
         if (!match) return false;
       }
-      // 既に修得単位が max_credits に達している科目は除外する
       try {
         const explicitMax = course.max_credits;
         const maxCredits =
@@ -417,10 +408,9 @@ export default function AddTranscriptModal({
           });
         if (maxCredits != null && !(acquired < maxCredits)) return false;
       } catch {
-        // なにもしない
+        // ignore
       }
 
-      // 前提条件チェックで弾かれている科目は候補から除外する
       if (allowedCourses && allowedCourses.size > 0) {
         if (!allowedCourses.has(course.course)) return false;
       }
@@ -431,219 +421,203 @@ export default function AddTranscriptModal({
     return groupCoursesBySubject(candidateList);
   })();
 
-  const renderStepContent = () => {
-    switch (step) {
-      case 1:
-        return (
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground pb-1">
-              ※古い年度から順に記録を追加してください。
-            </div>
-            <Label htmlFor="yearSelect">
-              履修した年度を選択してください（必須）
-            </Label>
-            <Select
-              value={selectedYear?.toString() ?? ""}
-              onValueChange={(value) => {
-                const num = Number(value);
-                setSelectedYear(num);
-                try {
-                  localStorage.setItem("addTranscript.lastSelectedYear", value);
-                } catch (_) {}
-              }}
-            >
-              <SelectTrigger id="yearSelect">
-                <SelectValue placeholder="年度を選択" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableYears.map((year) => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}年度
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="pt-2">
-              <Label>
-                {selectedYear !== null
-                  ? `${selectedYear}年度のクラスを選択してください（必須）`
-                  : "先に年度を選択してください（必須）"}
-              </Label>
-              <ClassSelect
-                availableClasses={
-                  localAvailableClasses.length > 0
-                    ? localAvailableClasses
-                    : availableClasses
+  // --- Render Steps (Extracted) ---
+
+  const renderStep1 = () => (
+    <div className="space-y-2">
+      <div className="text-sm text-muted-foreground pb-1">
+        ※古い年度から順に記録を追加してください。
+      </div>
+      <Label htmlFor="yearSelect">履修した年度を選択してください（必須）</Label>
+      <Select
+        value={selectedYear?.toString() ?? ""}
+        onValueChange={(value) => {
+          const num = Number(value);
+          setSelectedYear(num);
+          try {
+            localStorage.setItem("addTranscript.lastSelectedYear", value);
+          } catch (_) {}
+        }}
+      >
+        <SelectTrigger id="yearSelect">
+          <SelectValue placeholder="年度を選択" />
+        </SelectTrigger>
+        <SelectContent>
+          {availableYears.map((year) => (
+            <SelectItem key={year} value={year.toString()}>
+              {year}年度
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <div className="pt-2">
+        <Label>
+          {selectedYear !== null
+            ? `${selectedYear}年度のクラスを選択してください（必須）`
+            : "先に年度を選択してください（必須）"}
+        </Label>
+        <ClassSelect
+          availableClasses={
+            localAvailableClasses.length > 0
+              ? localAvailableClasses
+              : availableClasses
+          }
+          currentClass={selectedClass}
+          onClassChange={async (c) => {
+            setSelectedClass(c);
+            try {
+              if (selectedYear != null && c) {
+                const parsed = parseClassName(c);
+                if (parsed) {
+                  await dbClient.upsertUserProfile(
+                    selectedYear,
+                    parsed.department,
+                    parsed.division,
+                    parsed.classNum,
+                  );
                 }
-                currentClass={selectedClass}
-                onClassChange={async (c) => {
-                  setSelectedClass(c);
-                  try {
-                    if (selectedYear != null && c) {
-                      const parsed = parseClassName(c);
-                      if (parsed) {
-                        await dbClient.upsertUserProfile(
-                          selectedYear,
-                          parsed.department,
-                          parsed.division,
-                          parsed.classNum,
-                        );
+              }
+            } catch (error) {
+              console.error(
+                "Failed to upsert user profile for selectedYear",
+                error,
+              );
+            }
+            try {
+              const globalYear = useSettingsStore.getState().currentYear;
+              if (selectedYear === globalYear) {
+                await useSettingsStore.getState().setCurrentClass(c);
+              }
+            } catch (error) {
+              console.error(
+                "Failed to set current class in settings store",
+                error,
+              );
+            }
+          }}
+          disabled={selectedYear == null}
+        />
+      </div>
+    </div>
+  );
+
+  const renderStep2 = () => (
+    <div className="space-y-3">
+      <div className="flex justify-between items-center">
+        <p className="text-lg">
+          {selectedYear}年度に履修した科目を選択してください
+        </p>
+        <p className="text-sm font-medium">{selectedCourses.size} 件選択中</p>
+      </div>
+      <p className="text-sm text-gray-600 mt-1">
+        ※前提条件を満たす科目のみ表示しています。既に修得済みの科目は表示されません。
+      </p>
+      <Input
+        placeholder="科目名 / 略称で絞り込み"
+        value={filterText}
+        onChange={(e) => setFilterText(e.target.value)}
+      />
+      {isLoadingCourses ? (
+        <div className="h-[50vh] flex items-center justify-center border rounded">
+          <p className="text-sm text-muted-foreground">読み込み中…</p>
+        </div>
+      ) : (
+        <div className="h-[50vh] overflow-y-auto space-y-4 border rounded p-3">
+          {Object.entries(filteredCoursesBySubject).map(
+            ([subject, courses]) => (
+              <div key={subject}>
+                <p className="font-semibold text-sm mb-2">{subject}</p>
+                <div className="flex flex-wrap gap-3">
+                  {courses.map((course) => (
+                    <CourseCheckbox
+                      key={course.course}
+                      courseName={course.course}
+                      courseAbbr={course.abbr}
+                      isSelected={selectedCourses.has(course.course)}
+                      onToggle={handleCourseToggle}
+                    />
+                  ))}
+                </div>
+              </div>
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderStep3 = () => (
+    <div className="space-y-3">
+      <p className="text-sm">履修状況と単位数を入力してください</p>
+      <div className="border rounded-lg">
+        <div className="max-h-[50vh] overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>科目名</TableHead>
+                <TableHead>履修状況（履修 / 修得）</TableHead>
+                <TableHead>単位数</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {inputs.map((input, index) => (
+                <TableRow key={input.course_name}>
+                  <TableCell>{input.course_name}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={input.status}
+                      onValueChange={(value) =>
+                        handleInputChange(index, "status", value)
                       }
-                    }
-                  } catch (error) {
-                    console.error(
-                      "Failed to upsert user profile for selectedYear",
-                      error,
-                    );
-                  }
-                  try {
-                    const globalYear = useSettingsStore.getState().currentYear;
-                    if (selectedYear === globalYear) {
-                      await useSettingsStore.getState().setCurrentClass(c);
-                    }
-                  } catch (error) {
-                    console.error(
-                      "Failed to set current class in settings store",
-                      error,
-                    );
-                  }
-                }}
-                disabled={selectedYear == null}
-              />
-            </div>
-          </div>
-        );
-
-      case 2:
-        return (
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <p className="text-lg">
-                {selectedYear}年度に履修した科目を選択してください
-              </p>
-              <p className="text-sm font-medium">
-                {selectedCourses.size} 件選択中
-              </p>
-            </div>
-            <p className="text-sm text-gray-600 mt-1">
-              ※前提条件を満たす科目のみ表示しています。既に修得済みの科目は表示されません。
-            </p>
-            <Input
-              placeholder="科目名 / 略称で絞り込み"
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-            />
-            {isLoadingCourses ? (
-              <div className="h-[50vh] flex items-center justify-center border rounded">
-                <p className="text-sm text-muted-foreground">読み込み中…</p>
-              </div>
-            ) : (
-              <div className="h-[50vh] overflow-y-auto space-y-4 border rounded p-3">
-                {Object.entries(filteredCoursesBySubject).map(
-                  ([subject, courses]) => (
-                    <div key={subject}>
-                      <p className="font-semibold text-sm mb-2">{subject}</p>
-                      <div className="flex flex-wrap gap-3">
-                        {courses.map((course) => (
-                          <CourseCheckbox
-                            key={course.course}
-                            courseName={course.course}
-                            courseAbbr={course.abbr}
-                            isSelected={selectedCourses.has(course.course)}
-                            onToggle={handleCourseToggle}
-                          />
-                        ))}
-                      </div>
+                    >
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="履修">履修</SelectItem>
+                        <SelectItem value="修得">修得</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        className="w-16"
+                        value={input.credits}
+                        onChange={(e) =>
+                          handleInputChange(index, "credits", e.target.value)
+                        }
+                        min={0}
+                        max={input.maxCredits ?? undefined}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {input.maxCredits == null
+                          ? "上限なし"
+                          : `残り ${input.maxCredits} 単位`}
+                      </span>
                     </div>
-                  ),
-                )}
-              </div>
-            )}
-          </div>
-        );
-
-      case 3:
-        return (
-          <div className="space-y-3">
-            <p className="text-sm">履修状況と単位数を入力してください</p>
-            <div className="border rounded-lg">
-              <div className="max-h-[50vh] overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>科目名</TableHead>
-                      <TableHead>履修状況（履修 / 修得）</TableHead>
-                      <TableHead>単位数</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {inputs.map((input, index) => (
-                      <TableRow key={input.course_name}>
-                        <TableCell>{input.course_name}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={input.status}
-                            onValueChange={(value) =>
-                              handleInputChange(index, "status", value)
-                            }
-                          >
-                            <SelectTrigger className="w-[100px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="履修">履修</SelectItem>
-                              <SelectItem value="修得">修得</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              className="w-16"
-                              value={input.credits}
-                              onChange={(e) =>
-                                handleInputChange(
-                                  index,
-                                  "credits",
-                                  e.target.value,
-                                )
-                              }
-                              min={0}
-                              max={input.maxCredits ?? undefined}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              {input.maxCredits == null
-                                ? "上限なし"
-                                : `残り ${input.maxCredits} 単位`}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => handleRemoveClick(index)}
-                            aria-label={`削除 ${input.course_name}`}
-                          >
-                            <X size={16} />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => handleRemoveClick(index)}
+                      aria-label={`削除 ${input.course_name}`}
+                    >
+                      <X size={16} />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={show} onOpenChange={handleClose}>
@@ -651,7 +625,11 @@ export default function AddTranscriptModal({
         <DialogHeader>
           <DialogTitle>履修記録を追加</DialogTitle>
         </DialogHeader>
-        <div className="py-4">{renderStepContent()}</div>
+        <div className="py-4">
+          {step === 1 && renderStep1()}
+          {step === 2 && renderStep2()}
+          {step === 3 && renderStep3()}
+        </div>
         <DialogFooter className="flex gap-2 justify-end">
           {step > 1 && (
             <Button

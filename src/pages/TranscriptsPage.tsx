@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AddTranscriptModal, EditTranscriptModal } from "@/components";
 import DropdownSelect from "@/components/common/DropdownSelect";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ export default function TranscriptsPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  // --- Store ---
   const updateTranscript = useTranscriptsStore(
     (state) => state.updateTranscript,
   );
@@ -34,55 +33,14 @@ export default function TranscriptsPage() {
   const restoreTranscript = useTranscriptsStore(
     (state) => state.restoreTranscript,
   );
+
   const transcripts = useTranscriptsStore((state) => state.transcripts);
   const loadTranscripts = useTranscriptsStore((state) => state.loadTranscripts);
-  const courseAbbrMap = useTranscriptsStore((state) => state.courseAbbrMap);
-  const availableYearsForTranscripts = useSettingsStore(
-    (state) => state.availableYearsForTranscripts,
-  );
 
   useEffect(() => {
     loadTranscripts();
   }, [loadTranscripts]);
 
-  // --- Filter Logic (Inline) ---
-  const [filterText, setFilterText] = useState("");
-  const [yearFilter, setYearFilter] = useState<string | null>(null); // null === all
-  const [statusFilter, setStatusFilter] = useState<string | null>(null); // null === all
-
-  const filteredTranscripts = useMemo(() => {
-    const keyword = filterText.trim().toLowerCase();
-    return transcripts.filter((item) => {
-      // 1. テキスト検索 (科目名 or 略称)
-      if (keyword) {
-        const courseNameMatch = item.course_name
-          .toLowerCase()
-          .includes(keyword);
-        const abbr = courseAbbrMap[item.course_name]?.toLowerCase() ?? "";
-        const abbrMatch = abbr.includes(keyword);
-        if (!courseNameMatch && !abbrMatch) return false;
-      }
-      // 2. 年度フィルタ
-      if (yearFilter !== null) {
-        if (item.year !== Number(yearFilter)) return false;
-      }
-      // 3. 状態フィルタ
-      if (statusFilter !== null) {
-        if (item.status !== statusFilter) return false;
-      }
-      return true;
-    });
-  }, [transcripts, filterText, yearFilter, statusFilter, courseAbbrMap]);
-
-  // --- Stats Logic (Inline) ---
-  const acquiredCredits = useMemo(() => {
-    return filteredTranscripts.reduce(
-      (sum, r) => (r.status === "修得" ? sum + (r.credits ?? 0) : sum),
-      0,
-    );
-  }, [filteredTranscripts]);
-
-  // --- Handlers ---
   const handleEditClick = (item: TranscriptData) => {
     setEditTarget(item);
     setEditError(null);
@@ -129,6 +87,40 @@ export default function TranscriptsPage() {
       });
     }
   };
+
+  const [filterText, setFilterText] = useState("");
+  const courseAbbrMap = useTranscriptsStore((state) => state.courseAbbrMap);
+  const availableYearsForTranscripts = useSettingsStore(
+    (state) => state.availableYearsForTranscripts,
+  );
+
+  const [yearFilter, setYearFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  const keyword = filterText.trim().toLowerCase();
+  const filteredTranscripts = transcripts.filter((item) => {
+    if (keyword) {
+      const courseNameMatch = item.course_name.toLowerCase().includes(keyword);
+      const abbr = courseAbbrMap[item.course_name]?.toLowerCase() ?? "";
+      const abbrMatch = abbr.includes(keyword);
+      if (!courseNameMatch && !abbrMatch) return false;
+    }
+
+    if (yearFilter !== null) {
+      if (item.year !== Number(yearFilter)) return false;
+    }
+
+    if (statusFilter !== null) {
+      if (item.status !== statusFilter) return false;
+    }
+
+    return true;
+  });
+
+  const acquiredCredits = filteredTranscripts.reduce(
+    (sum, r) => (r.status === "修得" ? sum + (r.credits ?? 0) : sum),
+    0,
+  );
 
   return (
     <div className="px-6 py-4 h-full flex flex-col overflow-hidden">
@@ -200,7 +192,6 @@ export default function TranscriptsPage() {
           </Table>
         </div>
 
-        {/* Body (Scrollable) */}
         <div className="flex-1 overflow-y-auto">
           <Table>
             <TableBody>
@@ -241,14 +232,15 @@ export default function TranscriptsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="text-center text-muted-foreground py-8"
-                  >
+                  <TableCell className="w-16 text-center" />
+                  <TableCell className="w-36 text-left text-muted-foreground py-8">
                     {transcripts.length === 0
                       ? "今までに履修 / 修得した科目を追加してください。"
                       : "該当する履修記録がありません。"}
                   </TableCell>
+                  <TableCell className="w-24 text-center" />
+                  <TableCell className="w-20 text-center" />
+                  <TableCell className="w-40 text-center" />
                 </TableRow>
               )}
             </TableBody>
