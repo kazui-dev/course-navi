@@ -15,6 +15,7 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 .github/*
+!.github/dependabot.yml
 !.vscode/extensions.json
 .idea
 .DS_Store
